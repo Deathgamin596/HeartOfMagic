@@ -3,6 +3,8 @@
 #include "EncodingUtils.h"
 #include "SpellEffectivenessHook.h"
 
+#include <unordered_map>
+
 namespace SpellScanner
 {
     // =============================================================================
@@ -19,6 +21,19 @@ namespace SpellScanner
 
         const auto& allSpells = dataHandler->GetFormArray<RE::SpellItem>();
         logger::info("SpellScanner: Found {} total spell forms", allSpells.size());
+
+        // Build a map from spell FormID -> book for tome lookup
+        std::unordered_map<RE::FormID, RE::TESObjectBOOK*> spellToBookMap;
+        {
+            const auto& allBooks = dataHandler->GetFormArray<RE::TESObjectBOOK>();
+            for (auto* book : allBooks) {
+                if (!book || !book->TeachesSpell()) continue;
+                RE::SpellItem* spell = book->GetSpell();
+                if (!spell) continue;
+                spellToBookMap[spell->GetFormID()] = book;
+            }
+        }
+        logger::info("SpellScanner: Built tome map with {} entries", spellToBookMap.size());
 
         json spellArray = json::array();
         int scannedCount = 0;
@@ -236,6 +251,13 @@ namespace SpellScanner
             spellJson["name"] = EncodingUtils::SanitizeToUTF8(name);  // Sanitize for valid UTF-8 JSON
             spellJson["school"] = GetSchoolName(school);
             spellJson["skillLevel"] = DetermineSpellTier(spell);
+
+            // Tome info
+            auto bookIt = spellToBookMap.find(formId);
+            if (bookIt != spellToBookMap.end() && bookIt->second) {
+                spellJson["tomeFormId"] = std::format("0x{:08X}", bookIt->second->GetFormID());
+                spellJson["tomeName"] = EncodingUtils::SanitizeToUTF8(bookIt->second->GetFullName());
+            }
 
             // Optional fields
             if (fields.editorId && hasEditorId) {

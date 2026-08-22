@@ -95,12 +95,26 @@ window.updateSpellData = function(jsonStr) {
         var parsed = JSON.parse(jsonStr);
         if (parsed.scanMode === 'spell_tomes') {
             console.log('[SpellLearning] Tome scan received: ' + (parsed.spells ? parsed.spells.length : 0) + ' tomed spells');
-            state.tomedSpellIds = {};
+            
+            // Save full tome mapping: spell formId -> { tomeFormId, tomeName }
+            state.tomeMap = {};
             if (parsed.spells) {
                 parsed.spells.forEach(function(s) {
-                    if (s.formId) state.tomedSpellIds[s.formId] = true;
+                    if (s.formId) {
+                        state.tomeMap[s.formId] = {
+                            tomeFormId: s.tomeFormId || null,
+                            tomeName: s.tomeName || ''
+                        };
+                    }
                 });
             }
+            
+            // Also build the legacy set for UI filtering
+            state.tomedSpellIds = {};
+            Object.keys(state.tomeMap).forEach(function(spellId) {
+                state.tomedSpellIds[spellId] = true;
+            });
+            
             if (typeof updatePrimedCount === 'function') updatePrimedCount();
             // Restore scan status after background tome scan (C++ overwrites with "Scanning spell tomes...")
             if (state.lastSpellData && state.lastSpellData.spellCount) {
@@ -116,12 +130,29 @@ window.updateSpellData = function(jsonStr) {
         console.error('[SpellLearning] Failed to parse JSON for tome scan check:', e);
         /* continue to normal processing */ }
 
-    var scanSuccess = false;
-    try {
-        var data = JSON.parse(jsonStr);
-        state.lastSpellData = data;
-        
-        var formatted = JSON.stringify(data, null, 2);
+        var scanSuccess = false;
+        try {
+            var data = JSON.parse(jsonStr);
+            state.lastSpellData = data;
+            
+            // Build tome map from regular scan data if present
+            if (data.spells && data.spells.length > 0) {
+                var hasTomeData = data.spells.some(function(s) { return s.tomeFormId || s.tomeName; });
+                if (hasTomeData) {
+                    state.tomeMap = {};
+                    data.spells.forEach(function(s) {
+                        if (s.formId && (s.tomeFormId || s.tomeName)) {
+                            state.tomeMap[s.formId] = {
+                                tomeFormId: s.tomeFormId || null,
+                                tomeName: s.tomeName || ''
+                            };
+                        }
+                    });
+                    console.log('[SpellLearning] Built tome map from scan data: ' + Object.keys(state.tomeMap).length + ' entries');
+                }
+            }
+            
+            var formatted = JSON.stringify(data, null, 2);
         var outputArea = document.getElementById('outputArea');
         if (outputArea) outputArea.value = formatted;
         
@@ -332,6 +363,43 @@ window.updateSpellData = function(jsonStr) {
         if (typeof resetProceduralButton === 'function') resetProceduralButton();
         if (typeof resetProceduralPlusButton === 'function') resetProceduralPlusButton();
     }
+};
+
+window.exportTomeMap = function() {
+    if (!state.tomeMap || Object.keys(state.tomeMap).length === 0) {
+        console.warn('[SpellLearning] No tome map available - toggle "Tomes only" on first');
+        return JSON.stringify({error: 'No tome data. Enable "Tomes only" toggle to scan tome mappings.'}, null, 2);
+    }
+    
+    var output = [];
+    Object.keys(state.tomeMap).forEach(function(spellId) {
+        var entry = state.tomeMap[spellId];
+        output.push({
+            spellFormId: spellId,
+            tomeFormId: entry.tomeFormId,
+            tomeName: entry.tomeName
+        });
+    });
+    
+    var json = JSON.stringify(output, null, 2);
+    console.log('[SpellLearning] Exported ' + output.length + ' tome mappings');
+    return json;
+};
+
+window.saveTomeMapToFile = function() {
+    var json = window.exportTomeMap();
+    if (!json) return;
+    
+    var blob = new Blob([json], {type: 'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'tome_mappings_' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('[SpellLearning] Tome map saved to file');
 };
 
 window.updateStatus = function(message) {
