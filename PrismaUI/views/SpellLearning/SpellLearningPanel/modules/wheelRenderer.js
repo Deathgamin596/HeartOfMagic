@@ -1471,9 +1471,9 @@ var WheelRenderer = {
         var _canonId = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(node) : node.formId;
         if (!state.spellProgress || !state.spellProgress[_canonId]) return 0;
         var progress = state.spellProgress[_canonId];
+        var required = progress.required || (typeof getXPForTier === 'function' ? getXPForTier(node.level) : 100) || 100;
         var currentXP = progress.xp || 0;
-        var requiredXP = (typeof getXPForTier === 'function' ? getXPForTier(node.level) : 100) || 100;
-        return Math.min(100, Math.floor((currentXP / requiredXP) * 100));
+        return Math.min(100, Math.floor((currentXP / required) * 100));
     },
     
     createNodeElement: function(node) {

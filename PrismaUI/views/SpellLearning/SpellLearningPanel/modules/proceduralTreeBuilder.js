@@ -867,6 +867,7 @@ function addSimpleAlternatePaths(nodes, nodeById, nodesByTier, edges, rng, gridC
 
 /**
  * Update node children/prerequisites arrays from edges
+ * Also recomputes hardPrereqs/softPrereqs to stay consistent with prerequisites
  */
 function updateNodeConnections(nodes, nodeById, edges) {
     // Clear and rebuild
@@ -887,6 +888,27 @@ function updateNodeConnections(nodes, nodeById, edges) {
                 toNode.prerequisites.push(e.from);
             }
         }
+    });
+
+    nodes.forEach(function(node) {
+        var hardPrereqs = node.hardPrereqs || [];
+        var softPrereqs = node.softPrereqs || [];
+        var softNeeded = node.softNeeded || 0;
+
+        if (hardPrereqs.length === 0 && softPrereqs.length === 0) {
+            var prereqs = node.prerequisites || [];
+            if (prereqs.length === 1) {
+                hardPrereqs = prereqs.slice();
+            } else if (prereqs.length > 1) {
+                hardPrereqs = [prereqs[0]];
+                softPrereqs = prereqs.slice(1);
+                softNeeded = 1;
+            }
+        }
+
+        node.hardPrereqs = hardPrereqs;
+        node.softPrereqs = softPrereqs;
+        node.softNeeded = softNeeded;
     });
 }
 

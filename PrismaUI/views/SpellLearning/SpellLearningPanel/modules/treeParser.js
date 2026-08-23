@@ -582,6 +582,7 @@ var TreeParser = {
         if (spellData) {
             node.name = spellData.name || spellData.editorId || node.formId;
             node.level = spellData.level || spellData.skillLevel || 'Unknown';
+            node.requiredXP = getXPForTier(node.level);
             node.cost = spellData.cost || spellData.magickaCost || 0;
             node.type = spellData.type || spellData.castingType || 'Spell';
             node.effects = spellData.effects || spellData.effectNames || [];

@@ -52,20 +52,27 @@ void UIManager::OnSetLearningTarget(const char* argument)
             auto* pm = ProgressionManager::GetSingleton();
             pm->SetLearningTarget(school, formId, prereqs);
 
-            // Set requiredXP from tree data if provided (syncs JS tree XP to C++)
+            // Set requiredXP from tree data if provided (syncs JS tree XP to C++).
+            // If the JS value is missing/non-positive, derive it from the spell's tier
+            // so the authoritative required XP is always known and reported back to the UI.
+            float requiredXP = 0.0f;
             if (request.contains("requiredXP") && request["requiredXP"].is_number()) {
-                float requiredXP = request["requiredXP"].get<float>();
-                if (requiredXP > 0) {
-                    pm->SetRequiredXP(formId, requiredXP);
-                    logger::info("UIManager: Set requiredXP for {:08X} to {:.0f} (from tree)", formId, requiredXP);
-                }
+                requiredXP = request["requiredXP"].get<float>();
+            }
+            if (requiredXP <= 0.0f) {
+                requiredXP = pm->GetRequiredXP(formId);
+            }
+            if (requiredXP > 0.0f) {
+                pm->SetRequiredXP(formId, requiredXP);
+                logger::info("UIManager: Set requiredXP for {:08X} to {:.0f} (from tree)", formId, requiredXP);
             }
 
-            // Notify UI
+            // Notify UI (include requiredXP so the detail panel updates immediately on learn)
             json response;
             response["success"] = true;
             response["school"] = school;
             response["formId"] = formIdStr;
+            response["requiredXP"] = requiredXP;
             instance->m_prismaUI->InteropCall(instance->m_view, "onLearningTargetSet", response.dump().c_str());
 
             // Update spell state to "learning" so canvas renderer shows learning visuals

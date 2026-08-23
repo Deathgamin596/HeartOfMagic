@@ -680,6 +680,33 @@ function _loadTrustedTree(data, switchToTreeTab) {
         }
     }
 
+    var nodeById = {};
+    for (var ni = 0; ni < nodes.length; ni++) {
+        nodeById[nodes[ni].id] = nodes[ni];
+    }
+
+    // Build edges from prerequisites (handles C++ convergence asymmetries)
+    nodes.forEach(function(node) {
+        var prereqs = node.prerequisites || [];
+        prereqs.forEach(function(prereqId) {
+            var edgeExists = edges.some(function(e) {
+                return e.from === prereqId && e.to === node.id;
+            });
+            if (!edgeExists) {
+                _logToSKSE('[_loadTrustedTree] Adding missing edge from prerequisites: ' + prereqId + ' -> ' + node.id);
+                edges.push({ from: prereqId, to: node.id });
+                var parent = nodeById[prereqId];
+                if (parent && parent.children.indexOf(node.id) === -1) {
+                    parent.children.push(node.id);
+                }
+            }
+        });
+    });
+
+    nodes.forEach(function(node) {
+        if (!node.requiredXP) node.requiredXP = getXPForTier(node.level);
+    });
+
     _logToSKSE('[_loadTrustedTree] TOTALS: ' + nodes.length + ' nodes, ' +
                edges.length + ' edges, ' + Object.keys(schools).length + ' schools');
     _logToSKSE('[_loadTrustedTree] POSITIONS: withXY=' + nodesWithXY +
@@ -1220,14 +1247,11 @@ function showSpellDetails(node) {
         console.log('[SpellLearning] No progress found for any variant of', node.formId);
     }
     progress = progress || { xp: 0, required: 100, progress: 0 };
-    
-    // Calculate XP required based on tier (always use current settings, not stale C++ value)
-    var tierXP = getXPForTier(node.level);
-    var requiredXP = xpOverrides[node.formId] !== undefined ? xpOverrides[node.formId] : (tierXP || 100);
+    progress.required = progress.required || 100;
     
     // Calculate progress percent - use xp/required directly since progress.progress may not be set
-    var progressPercent = requiredXP > 0 ? ((progress.xp || 0) / requiredXP) * 100 : 0;
-    console.log('[SpellLearning] Progress:', progress.xp, '/', requiredXP, '=', progressPercent.toFixed(1) + '%',
+    var progressPercent = progress.required > 0 ? ((progress.xp || 0) / progress.required) * 100 : 0;
+    console.log('[SpellLearning] Progress:', progress.xp, '/', progress.required, '=', progressPercent.toFixed(1) + '%',
         '| revealName:', settings.revealName, '| showName should be:', progressPercent >= settings.revealName);
     
     // Check if player has the spell (via early learning or other means)
@@ -1590,6 +1614,9 @@ function updateDetailsProgression(node) {
     // Get progress data for this spell (use canonical ID for duplicates)
     var canonId = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(node) : node.formId;
     var progress = state.spellProgress[canonId] || { xp: 0, required: 100, unlocked: false, ready: false };
+    progress.required = progress.required || getXPForTier(node.level) || 100;
+    var tierXP = getXPForTier(node.level);
+    var requiredXP = progress.required;
     var isLearningTarget = state.learningTargets[node.school] === canonId || state.learningTargets[node.school] === node.formId;
 
     // Debug: log learning target check to file via C++
@@ -1607,11 +1634,6 @@ function updateDetailsProgression(node) {
     
     // Update learning status badge
     updateLearningStatusBadge(node, progress);
-    
-    // Calculate required XP - use override if exists, otherwise tier-based
-    var tierXP = getXPForTier(node.level);
-    var requiredXP = xpOverrides[node.formId] !== undefined ? xpOverrides[node.formId] : tierXP;
-    progress.required = requiredXP;
     
     // Hide all buttons by default
     learnBtn.classList.add('hidden');

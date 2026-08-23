@@ -71,18 +71,27 @@ void UIManager::OnLoadSpellTree([[maybe_unused]] const char* argument)
                                         std::string formIdStr = node["formId"].get<std::string>();
                                         formIds.push_back(formIdStr);
 
-                                        // Sync requiredXP from tree to ProgressionManager
+                                        // Sync requiredXP from tree to ProgressionManager.
+                                        // If the tree node has an explicit requiredXP use it; otherwise
+                                        // derive it from the spell's tier so EVERY spell (not just those
+                                        // with an active learning target) has a known requiredXP. This
+                                        // ensures the value is shown in the UI immediately on open,
+                                        // instead of only after SetLearningTarget is called.
+                                        float reqXP = 0.0f;
                                         if (node.contains("requiredXP") && node["requiredXP"].is_number()) {
-                                            float reqXP = node["requiredXP"].get<float>();
-                                            if (reqXP > 0) {
-                                                try {
-                                                    RE::FormID formId = std::stoul(formIdStr, nullptr, 0);
-                                                    pm->SetRequiredXP(formId, reqXP);
-                                                    xpSyncCount++;
-                                                } catch (const std::exception& e) {
-                                                    logger::warn("UIManager: Failed to parse formId '{}' for XP sync: {}", formIdStr, e.what());
-                                                }
+                                            reqXP = node["requiredXP"].get<float>();
+                                        }
+                                        try {
+                                            RE::FormID formId = std::stoul(formIdStr, nullptr, 0);
+                                            if (reqXP <= 0.0f) {
+                                                reqXP = pm->GetRequiredXP(formId);
                                             }
+                                            if (reqXP > 0.0f) {
+                                                pm->SetRequiredXP(formId, reqXP);
+                                                xpSyncCount++;
+                                            }
+                                        } catch (const std::exception& e) {
+                                            logger::warn("UIManager: Failed to resolve/sync requiredXP for '{}': {}", formIdStr, e.what());
                                         }
                                     }
                                 }

@@ -371,7 +371,11 @@ function onLearnClick() {
         
         // Set as learning target with prerequisites for direct XP detection
         var prereqs = node.prerequisites || [];
-        var reqXP = node.requiredXP || 100;  // Default to 100 if not specified
+        // Use the authoritative required XP (existing progress, then node, then tier) so C++
+        // stores the real value rather than a hardcoded fallback.
+        var learnCanon = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(node) : node.formId;
+        var existingProg = state.spellProgress[learnCanon] || state.spellProgress[node.formId];
+        var reqXP = (existingProg && existingProg.required) || node.requiredXP || getXPForTier(node.level) || 100;
         console.log('[SpellLearning] Setting learning target:', node.formId, 'with', prereqs.length, 'prereqs, requiredXP:', reqXP);
 
         if (window.callCpp) {
@@ -521,9 +525,14 @@ window.onProgressUpdate = function(dataStr) {
         // Use UNIFIED mastery check to determine if truly mastered
         var isMastered = typeof isSpellMastered === 'function' && isSpellMastered(canonId);
 
+        // Treat as mastered if: JS agrees OR C++ says unlocked (JS XP calc may differ from C++)
+        // When data.unlocked is true, XP is at 100% on the C++ side even if
+        // the JS-computed required XP differs, causing isSpellMastered to return false.
+        var effectivelyMastered = isMastered || data.unlocked;
+
         // Only set node state to 'unlocked' if TRULY mastered (100% XP)
         // Find ALL nodes matching this canonical formId (including duplicates)
-        if (isMastered && state.treeData) {
+        if (effectivelyMastered && state.treeData) {
             state.treeData.nodes.forEach(function(n) {
                 var nCanon = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(n) : n.formId;
                 if (nCanon === canonId && n.state !== 'unlocked') {
@@ -550,7 +559,7 @@ window.onProgressUpdate = function(dataStr) {
                     }, 100);
                 }
             }
-        } else if (data.unlocked && !isMastered) {
+        } else if (data.unlocked && !effectivelyMastered) {
             // C++ says unlocked but unified check says not mastered - log warning
             console.warn('[SpellLearning] C++ says unlocked but not mastered yet: ' + canonId);
         }
@@ -560,7 +569,7 @@ window.onProgressUpdate = function(dataStr) {
         if (state.selectedNode && selectedCanon === canonId) {
             console.log('[SpellLearning] Updating details panel for selected node');
             // Only update state to unlocked if truly mastered
-            if (isMastered) {
+            if (effectivelyMastered) {
                 state.selectedNode.state = 'unlocked';
             }
             // Refresh FULL details panel (includes name/effects reveal based on progress)
@@ -693,7 +702,9 @@ function autoAdvanceLearningTarget(masteredCanonId, school) {
 
     // Set the new learning target
     var prereqs = candidate.prerequisites || [];
-    var reqXP = candidate.requiredXP || getXPForTier(candidate.level) || 100;
+    var candCanon = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(candidate) : candidate.formId;
+    var candProg = state.spellProgress[candCanon] || state.spellProgress[candidate.formId];
+    var reqXP = (candProg && candProg.required) || candidate.requiredXP || getXPForTier(candidate.level) || 100;
 
     if (window.callCpp) {
         window.callCpp('SetLearningTarget', JSON.stringify({
@@ -845,21 +856,34 @@ window.onLearningTargetSet = function(dataStr) {
     console.log('[SpellLearning] Learning target set:', dataStr);
     try {
         var data = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
+
+        var targetNode = state.treeData.nodes.find(function(n) { return n.formId === data.formId; });
+
+        // Authoritative required XP: prefer the value reported by C++ (which falls back to
+        // the real spell tier), otherwise derive it from the node's tier. This ensures the
+        // required XP is correct and shown immediately, without needing to close/reopen the UI.
+        var incomingReq = (typeof data.requiredXP === 'number' && data.requiredXP > 0)
+            ? data.requiredXP
+            : ((targetNode && typeof getXPForTier === 'function') ? getXPForTier(targetNode.level) : 0) || 100;
+        if (targetNode) targetNode.requiredXP = incomingReq;
         
         // Update state.learningTargets immediately
         if (data.school && data.formId) {
             state.learningTargets[data.school] = data.formId;
             console.log('[SpellLearning] Updated learning target: ' + data.school + ' -> ' + data.formId + ' (' + data.spellName + ')');
             
-            // Initialize progress entry if needed (use canonical ID)
+            // Initialize or update progress entry (use canonical ID) with the real required XP
             var lCanonId = (typeof resolveCanonicalId === 'function') ? resolveCanonicalId(data.formId) : data.formId;
             if (!state.spellProgress[lCanonId]) {
                 state.spellProgress[lCanonId] = {
                     xp: 0,
-                    required: 100,
+                    required: incomingReq,
                     unlocked: false,
                     ready: false
                 };
+            } else {
+                // Preserve any real progress, but keep required XP up to date
+                state.spellProgress[lCanonId].required = incomingReq;
             }
 
             // Update node state to 'learning' if it exists in tree (match duplicates too)
@@ -876,6 +900,15 @@ window.onLearningTargetSet = function(dataStr) {
             }
             
             setTreeStatus(t('progression.nowLearning', {name: data.spellName || data.formId}));
+
+            // Refresh the details panel for this node so the required XP updates immediately
+            if (state.selectedNode &&
+                (state.selectedNode.formId === data.formId ||
+                 (typeof getCanonicalFormId === 'function' && getCanonicalFormId(state.selectedNode) === lCanonId))) {
+                if (typeof updateDetailsProgression === 'function') {
+                    updateDetailsProgression(state.selectedNode);
+                }
+            }
         }
     } catch (e) {
         console.error('[SpellLearning] Failed to parse learning target:', e);
@@ -946,6 +979,42 @@ window.onProgressData = function(dataStr) {
                 var p = state.spellProgress[k];
                 console.log('[SpellLearning]   ' + k + ': ' + p.xp + '/' + p.required + ' XP');
             });
+            
+            // Sync mastered spells (progress.unlocked === true) to 'unlocked' node state.
+            // This ensures children of mastered spells get unlocked even if
+            // onPlayerKnownSpells has a formId mismatch or race condition.
+            if (state.treeData && state.treeData.nodes) {
+                var masterySynced = 0;
+                state.treeData.nodes.forEach(function(node) {
+                    if (node.state === 'unlocked') return;
+                    
+                    var canonId = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(node) : node.formId;
+                    var progress = state.spellProgress[canonId] || state.spellProgress[node.formId];
+                    
+                    // FormId normalization: try with/without 0x prefix
+                    if (!progress && node.formId && !node.formId.startsWith('0x')) {
+                        progress = state.spellProgress['0x' + node.formId];
+                    }
+                    if (!progress && node.formId && node.formId.startsWith('0x')) {
+                        progress = state.spellProgress[node.formId.substring(2)];
+                    }
+                    
+                    if (progress && progress.unlocked) {
+                        node.state = 'unlocked';
+                        masterySynced++;
+                        console.log('[SpellLearning] Synced mastered spell to unlocked: ' + (node.name || node.formId));
+                        if (typeof syncDuplicateState === 'function') syncDuplicateState(node);
+                    }
+                });
+                if (masterySynced > 0) {
+                    console.log('[SpellLearning] Synced ' + masterySynced + ' mastered spells to unlocked state');
+                }
+            }
+        }
+        
+        // Recalculate availability — unlocks children of mastered spells
+        if (state.treeData && typeof recalculateNodeAvailability === 'function') {
+            recalculateNodeAvailability();
         }
         
         // Update display

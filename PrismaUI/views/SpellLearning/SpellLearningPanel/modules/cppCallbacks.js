@@ -854,6 +854,22 @@ function isSpellMastered(formId) {
     // Resolve canonical formId (strips _dup_ suffix for duplicate nodes)
     var canonId = resolveCanonicalId(formId);
     var progress = state.spellProgress[canonId] || state.spellProgress[formId];
+    
+    // FormId normalization fallback: try with/without 0x prefix
+    if (!progress && formId && !formId.startsWith('0x')) {
+        progress = state.spellProgress['0x' + formId];
+    }
+    if (!progress && formId && formId.startsWith('0x')) {
+        progress = state.spellProgress[formId.substring(2)];
+    }
+    if (!progress && canonId && canonId !== formId) {
+        if (!canonId.startsWith('0x')) {
+            progress = state.spellProgress['0x' + canonId];
+        } else {
+            progress = state.spellProgress[canonId.substring(2)];
+        }
+    }
+    
     if (!progress) return false;
 
     // Must be marked as unlocked AND have 100% progress (or close enough)
@@ -888,6 +904,22 @@ function isSpellLearning(formId) {
 
     // Check if player has it (from early grant) but not mastered
     var progress = state.spellProgress[canonId] || state.spellProgress[formId];
+    
+    // FormId normalization fallback: try with/without 0x prefix
+    if (!progress && formId && !formId.startsWith('0x')) {
+        progress = state.spellProgress['0x' + formId];
+    }
+    if (!progress && formId && formId.startsWith('0x')) {
+        progress = state.spellProgress[formId.substring(2)];
+    }
+    if (!progress && canonId && canonId !== formId) {
+        if (!canonId.startsWith('0x')) {
+            progress = state.spellProgress['0x' + canonId];
+        } else {
+            progress = state.spellProgress[canonId.substring(2)];
+        }
+    }
+    
     if (!progress) return false;
 
     var progressPercent = progress.required > 0 ? (progress.xp / progress.required) * 100 : 0;
@@ -931,6 +963,14 @@ function recalculateNodeAvailability() {
     // Helper: check if a prereq is truly mastered/already-known (not just learning)
     function isPrereqMastered(prereqId) {
         var prereqNode = nodeMap[prereqId];
+        if (!prereqNode && prereqId) {
+            // FormId normalization: try with/without 0x prefix
+            if (prereqId.startsWith('0x')) {
+                prereqNode = nodeMap[prereqId.substring(2)];
+            } else {
+                prereqNode = nodeMap['0x' + prereqId];
+            }
+        }
         if (!prereqNode) return false;
 
         // If node state is 'unlocked', it's either mastered or already-known
@@ -942,6 +982,21 @@ function recalculateNodeAvailability() {
         // Double-check with progress data (use canonical formId for duplicates)
         var canonicalId = getCanonicalFormId(prereqNode);
         var progress = state.spellProgress[canonicalId] || state.spellProgress[prereqNode.formId || prereqId];
+        
+        // FormId normalization fallback: try with/without 0x prefix
+        if (!progress && prereqNode.formId && !prereqNode.formId.startsWith('0x')) {
+            progress = state.spellProgress['0x' + prereqNode.formId];
+        }
+        if (!progress && prereqNode.formId && prereqNode.formId.startsWith('0x')) {
+            progress = state.spellProgress[prereqNode.formId.substring(2)];
+        }
+        if (!progress && prereqId && !prereqId.startsWith('0x')) {
+            progress = state.spellProgress['0x' + prereqId];
+        }
+        if (!progress && prereqId && prereqId.startsWith('0x')) {
+            progress = state.spellProgress[prereqId.substring(2)];
+        }
+        
         if (progress && progress.unlocked) {
             return true;
         }
@@ -969,8 +1024,11 @@ function recalculateNodeAvailability() {
         // If node is "unlocked" but NOT mastered AND player doesn't have the spell, fix it
         // Don't downgrade if player actually has the spell (progress data may just be stale)
         if (node.state === 'unlocked' && !isSpellMastered(canonId)) {
+            var playerHasNorm = canonId && canonId.startsWith('0x') ? canonId.substring(2) : (canonId ? '0x' + canonId : null);
             var playerHas = state.playerKnownSpells &&
-                           (state.playerKnownSpells.has(canonId) || state.playerKnownSpells.has(node.formId));
+                           (state.playerKnownSpells.has(canonId) || 
+                            state.playerKnownSpells.has(node.formId) ||
+                            (playerHasNorm ? state.playerKnownSpells.has(playerHasNorm) : false));
             if (!playerHas) {
                 node.state = 'available';
                 changedCount++;
@@ -1078,8 +1136,26 @@ window.onPlayerKnownSpells = function(dataStr) {
 
                 // Use canonical formId for duplicates
                 var canonId = getCanonicalFormId(node);
-                // If player doesn't have this spell, relock it
-                if (!state.playerKnownSpells.has(canonId) && !state.playerKnownSpells.has(node.formId)) {
+                // If player doesn't have this spell, check if it's mastered in progress data
+                // before relocking — progress.can unlock might be stale
+                // FormId normalization: try with/without 0x prefix
+                var knownIdNorm = canonId && canonId.startsWith('0x') ? canonId.substring(2) : (canonId ? '0x' + canonId : null);
+                var playerHas = state.playerKnownSpells.has(canonId) || 
+                               state.playerKnownSpells.has(node.formId) ||
+                               (knownIdNorm ? state.playerKnownSpells.has(knownIdNorm) : false);
+                var progressUnlocked = false;
+                if (!playerHas) {
+                    var prog = state.spellProgress[canonId] || state.spellProgress[node.formId];
+                    if (!prog && node.formId && !node.formId.startsWith('0x')) {
+                        prog = state.spellProgress['0x' + node.formId];
+                    }
+                    if (!prog && node.formId && node.formId.startsWith('0x')) {
+                        prog = state.spellProgress[node.formId.substring(2)];
+                    }
+                    progressUnlocked = prog && prog.unlocked;
+                }
+                
+                if (!playerHas && !progressUnlocked) {
                     // Root nodes go to "available" (always learnable), others go to "locked"
                     var newState = node.isRoot ? 'available' : 'locked';
                     
@@ -1112,7 +1188,20 @@ window.onPlayerKnownSpells = function(dataStr) {
                 var canonId = getCanonicalFormId(node);
 
                 // Skip if not in player's known spells (check both canonical and actual formId)
-                if (!state.playerKnownSpells.has(canonId) && !state.playerKnownSpells.has(node.formId)) {
+                // Also try with/without 0x prefix for robustness
+                var knownId = canonId;
+                if (!state.playerKnownSpells.has(knownId)) {
+                    if (canonId && !canonId.startsWith('0x')) {
+                        knownId = '0x' + canonId;
+                    } else if (canonId && canonId.startsWith('0x')) {
+                        knownId = canonId.substring(2);
+                    }
+                }
+                var formIdNorm = node.formId && node.formId.startsWith('0x') ? node.formId.substring(2) : (node.formId ? '0x' + node.formId : null);
+                if (!state.playerKnownSpells.has(canonId) &&
+                    !state.playerKnownSpells.has(node.formId) &&
+                    !state.playerKnownSpells.has(knownId) &&
+                    !(formIdNorm ? state.playerKnownSpells.has(formIdNorm) : false)) {
                     return;
                 }
 

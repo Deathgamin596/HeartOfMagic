@@ -411,6 +411,9 @@ TreeBuilder::BuildResult TreeBuilder::BuildTree(
             for (const auto& [sc, candId] : candidates) {
                 if (added >= needed) break;
                 node.AddPrerequisite(candId);
+                if (nodes.contains(candId)) {
+                    nodes[candId].AddChild(node.formId);
+                }
                 added++;
             }
         }
