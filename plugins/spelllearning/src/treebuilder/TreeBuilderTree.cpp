@@ -168,6 +168,7 @@ TreeBuilder::BuildResult TreeBuilder::BuildTree(
 
         // Group spells by theme
         auto grouped = GroupSpellsBestFit(schoolSpellList, schoolThemes, 30);
+        RescoreUnassignedCrossSchool(grouped, themesMap, 30);
 
         // === Round-robin tier-interleaved connection ===
         std::unordered_set<std::string> connected;

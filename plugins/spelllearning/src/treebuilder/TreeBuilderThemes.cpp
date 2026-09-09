@@ -10,11 +10,11 @@
 const std::unordered_map<std::string, std::vector<std::string>>& TreeBuilder::GetVanillaThemeHints()
 {
     static const std::unordered_map<std::string, std::vector<std::string>> hints = {
-        {"Destruction", {"fire", "frost", "shock", "cloak", "rune", "wall", "bolt", "storm"}},
-        {"Conjuration", {"conjure", "summon", "bound", "atronach", "zombie", "raise", "reanimate", "dremora"}},
-        {"Alteration",  {"flesh", "armor", "paralyze", "detect", "light", "transmute", "waterbreathing", "telekinesis"}},
-        {"Illusion",    {"fury", "fear", "calm", "courage", "invisibility", "muffle", "frenzy", "pacify"}},
-        {"Restoration", {"heal", "healing", "ward", "turn", "undead", "cure", "bane", "circle"}},
+        {"Destruction", {"fire", "flame", "burn", "frost", "ice", "shock", "lightning", "sound", "sonic", "cloak", "rune", "wall", "bolt", "storm", "dark", "void", "shadow", "umbral", "eldritch", "poison", "toxic", "plague", "disease", "venom", "blight", "blighted", "corrosive", "force", "fragments", "nature", "weather", "water", "earth", "wind", "gale", "tempest", "cyclone", "tornado", "zephyr", "typhoon", "twister", "gust", "rain", "hail", "sleet", "snow", "blizzard", "waterbolt", "waterlance", "watersurge"}},
+        {"Conjuration", {"conjure", "summon", "bound", "atronach", "zombie", "raise", "reanimate", "dremora", "daedra", "dragon", "dovah", "dragonborn", "dragonfire", "necro", "necromancer", "necromancy", "necrotic", "necromantic", "bone", "bones", "skeletal", "skeleton", "skull", "revenant", "phantom", "ghost", "specter", "wraith", "shade", "soul", "spirit", "decompose", "thrall", "minion", "swarm"}},
+        {"Alteration",  {"flesh", "armor", "paralyze", "detect", "light", "transmute", "waterbreathing", "telekinesis", "wish", "manifest", "arcane", "mystic", "astral", "knowledge", "wisdom", "intellect", "tome", "book", "scroll", "imbue", "enchant", "infuse", "empower", "transmogrify", "polymorph", "shapeshift", "transform", "teleport", "recall", "portal", "dimension", "utility"}},
+        {"Illusion",    {"fury", "fear", "calm", "courage", "invisibility", "muffle", "frenzy", "pacify", "mind", "charm", "enrage", "rage", "stealth", "sneak", "hide", "shroud", "aura"}},
+        {"Restoration", {"heal", "healing", "restore", "cure", "regeneration", "salvation", "ward", "turn", "undead", "bane", "circle", "holy", "sacred", "divine", "hallowed", "blessed", "sanctified", "vampire", "vampiric", "hemorrh", "drain", "leech", "siphon", "absorb", "lifesteal", "blood", "royal", "buff", "resist", "protection"}},
     };
     return hints;
 }
@@ -148,6 +148,42 @@ TreeBuilder::GetSpellPrimaryTheme(const json& spell, const std::vector<std::stri
     return {bestTheme.empty() ? "_unassigned" : bestTheme, bestScore};
 }
 
+void TreeBuilder::RescoreUnassignedCrossSchool(
+    std::unordered_map<std::string, std::vector<json>>& groups,
+    const std::unordered_map<std::string, std::vector<std::string>>& allThemes,
+    int minScore)
+{
+    if (groups.empty() || !groups.contains("_unassigned")) return;
+
+    auto& unassigned = groups["_unassigned"];
+    if (unassigned.empty()) return;
+
+    std::vector<json> stillUnassigned;
+
+    for (const auto& spell : unassigned) {
+        std::vector<std::string> flatThemes;
+        std::unordered_set<std::string> seen;
+        for (const auto& [school, themes] : allThemes) {
+            for (const auto& theme : themes) {
+                if (!seen.contains(theme)) {
+                    seen.insert(theme);
+                    flatThemes.push_back(theme);
+                }
+            }
+        }
+
+        auto [bestTheme, bestScore] = GetSpellPrimaryTheme(spell, flatThemes);
+
+        if (bestScore >= minScore && !bestTheme.empty() && bestTheme != "_unassigned") {
+            groups[bestTheme].push_back(spell);
+        } else {
+            stillUnassigned.push_back(spell);
+        }
+    }
+
+    unassigned = std::move(stillUnassigned);
+}
+
 std::unordered_map<std::string, std::vector<json>>
 TreeBuilder::GroupSpellsBestFit(const std::vector<json>& spells,
                                 const std::vector<std::string>& themes,
@@ -227,7 +263,7 @@ std::unordered_set<std::string> TreeBuilder::SimulateUnlocks(
                 }
             }
 
-            if (allPrereqsMet && !node.prerequisites.empty()) {
+            if (allPrereqsMet) {
                 unlocked.insert(fid);
                 changed = true;
             }

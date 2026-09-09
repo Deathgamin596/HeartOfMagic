@@ -111,6 +111,7 @@ private:
     static void OnSetHotkey(const char* argument);
     static void OnSetPauseGameOnFocus(const char* argument);
     static void OnSetTreePrerequisites(const char* argument);
+    static void OnNotifyAutoAdvanced(const char* argument);
     
     // Settings callbacks (legacy)
     static void OnLoadSettings(const char* argument);

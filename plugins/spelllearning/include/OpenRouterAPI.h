@@ -2,13 +2,15 @@
 
 #include <string>
 #include <functional>
+#include <mutex>
 
 namespace OpenRouterAPI {
 
     struct Config {
         std::string apiKey;
-        std::string model = "anthropic/claude-sonnet-4";  // Default model
+        std::string model = "anthropic/claude-sonnet-4";
         int maxTokens = 64000;
+        bool verifySSL = true;
     };
 
     struct Response {
@@ -17,27 +19,19 @@ namespace OpenRouterAPI {
         std::string error;
     };
 
-    // Initialize with API key (loaded from config file)
     bool Initialize();
-    
-    // Shutdown and cleanup resources
     void Shutdown();
-    
-    // Get current config
-    Config& GetConfig();
-    
-    // Save config to file
+    Config GetConfig();
+    void SetConfig(const Config& config);
+    std::mutex& GetConfigMutex();
     void SaveConfig();
 
-    // Send a prompt to OpenRouter (async)
-    // Callback will be called on completion
     void SendPromptAsync(
         const std::string& systemPrompt,
         const std::string& userPrompt,
         std::function<void(const Response&)> callback
     );
 
-    // Send a prompt (blocking)
     Response SendPrompt(
         const std::string& systemPrompt,
         const std::string& userPrompt

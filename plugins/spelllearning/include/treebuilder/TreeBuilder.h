@@ -119,6 +119,12 @@ namespace TreeBuilder
     std::pair<std::string, int>
     GetSpellPrimaryTheme(const json& spell, const std::vector<std::string>& themes);
 
+    // Cross-school fallback: rescore _unassigned spells against all themes
+    void RescoreUnassignedCrossSchool(
+        std::unordered_map<std::string, std::vector<json>>& groups,
+        const std::unordered_map<std::string, std::vector<std::string>>& allThemes,
+        int minScore = 30);
+
     // =========================================================================
     // TREE VALIDATION (replaced former validator.py)
     // =========================================================================

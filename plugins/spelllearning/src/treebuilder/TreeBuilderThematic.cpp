@@ -184,6 +184,7 @@ TreeBuilder::BuildResult TreeBuilder::BuildThematic(
 
         // Group spells into themes
         auto themeGroups = GroupSpellsBestFit(schoolSpellList, schoolThemes, 30);
+        RescoreUnassignedCrossSchool(themeGroups, themesMap, 30);
         std::vector<json> orphanSpells;
         if (themeGroups.contains("_unassigned")) {
             orphanSpells = themeGroups["_unassigned"];

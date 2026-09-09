@@ -205,6 +205,27 @@ TreeBuilder::BuildResult TreeBuilder::BuildClassic(
             }
         }
 
+        // Cross-school fallback for unassigned nodes
+        if (!themes.empty()) {
+            std::vector<std::string> flatThemes;
+            std::unordered_set<std::string> seen;
+            for (const auto& [school, thms] : themes) {
+                for (const auto& theme : thms) {
+                    if (!seen.contains(theme)) {
+                        seen.insert(theme);
+                        flatThemes.push_back(theme);
+                    }
+                }
+            }
+            for (auto& [fid, node] : nodes) {
+                if (!node.theme.empty()) continue;
+                auto [bestTheme, bestScore] = GetSpellPrimaryTheme(node.spellData, flatThemes);
+                if (bestScore >= 30 && !bestTheme.empty() && bestTheme != "_unassigned") {
+                    node.theme = bestTheme;
+                }
+            }
+        }
+
         // Build tree tier-by-tier
         std::unordered_set<std::string> connected;
         connected.insert(rootFormId);

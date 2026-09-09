@@ -565,3 +565,49 @@ void UIManager::OnSetTreePrerequisites(const char* argument)
         }
     });
 }
+
+void UIManager::OnNotifyAutoAdvanced(const char* argument)
+{
+    if (!argument || strlen(argument) == 0) {
+        logger::warn("UIManager: NotifyAutoAdvanced - no data provided");
+        return;
+    }
+
+    std::string argStr(argument);
+
+    AddTaskToGameThread("NotifyAutoAdvanced", [argStr]() {
+        auto* instance = GetSingleton();
+        if (!instance || !instance->m_prismaUI) return;
+
+        try {
+            json request = json::parse(argStr);
+            std::string formIdStr = request.value("formId", "");
+            std::string spellName = request.value("spellName", "");
+
+            if (formIdStr.empty()) {
+                logger::warn("UIManager: NotifyAutoAdvanced - missing formId");
+                return;
+            }
+
+            RE::FormID formId = std::stoul(formIdStr, nullptr, 0);
+            if (formId == 0) {
+                logger::warn("UIManager: NotifyAutoAdvanced - formId resolved to 0 for '{}', ignoring", formIdStr);
+                return;
+            }
+
+            // Look up the actual spell name if not provided
+            if (spellName.empty()) {
+                auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(formId);
+                spellName = spell ? spell->GetName() : formIdStr;
+            }
+
+            char notification[256];
+            snprintf(notification, sizeof(notification), "Auto-advanced: %s", spellName.c_str());
+            RE::SendHUDMessage::ShowHUDMessage(notification);
+            logger::info("UIManager: Auto-advanced to {} ({})", spellName, formIdStr);
+
+        } catch (const std::exception& e) {
+            logger::error("UIManager: NotifyAutoAdvanced exception: {}", e.what());
+        }
+    });
+}

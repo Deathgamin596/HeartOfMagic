@@ -298,7 +298,7 @@ static json BuildSchoolTreeLLM(
     const TreeBuilder::BuildConfig& config,
     std::mt19937& rng)
 {
-    if (spells.empty() || chains.empty()) return nullptr;
+    if (spells.empty() || chains.empty()) return {};
     (void)maxChildren;  // Chains are sequential; capacity handled by force-connect
 
     // Group by tier and pick root
@@ -310,7 +310,7 @@ static json BuildSchoolTreeLLM(
     }
 
     auto* rootSpell = PickRoot(byTier, config, schoolName, rng);
-    if (!rootSpell) return nullptr;
+    if (!rootSpell) return {};
     auto rootId = rootSpell->value("formId", std::string(""));
 
     // Create nodes
@@ -324,7 +324,7 @@ static json BuildSchoolTreeLLM(
         }
     }
 
-    if (!nodes.contains(rootId)) return nullptr;
+    if (!nodes.contains(rootId)) return {};
     auto& rootNode = nodes[rootId];
     rootNode.isRoot = true;
     rootNode.depth = 0;
@@ -448,7 +448,7 @@ static json BuildSchoolTreeFallback(
     const TreeBuilder::BuildConfig& config,
     std::mt19937& rng)
 {
-    if (spells.empty()) return nullptr;
+    if (spells.empty()) return {};
 
     std::unordered_map<std::string, std::vector<json>> byTier;
     for (const auto& spell : spells) {
@@ -458,7 +458,7 @@ static json BuildSchoolTreeFallback(
     }
 
     auto* rootSpell = PickRoot(byTier, config, schoolName, rng);
-    if (!rootSpell) return nullptr;
+    if (!rootSpell) return {};
     auto rootId = rootSpell->value("formId", std::string(""));
 
     std::unordered_map<std::string, TreeBuilder::TreeNode> nodes;
@@ -466,7 +466,7 @@ static json BuildSchoolTreeFallback(
         auto fid = spell.value("formId", std::string(""));
         if (!fid.empty()) nodes[fid] = TreeBuilder::TreeNode::FromSpell(spell);
     }
-    if (!nodes.contains(rootId)) return nullptr;
+    if (!nodes.contains(rootId)) return {};
 
     auto& rootNode = nodes[rootId];
     rootNode.isRoot = true;
@@ -652,11 +652,11 @@ TreeBuilder::BuildResult TreeBuilder::BuildOracle(
     // Check if LLM is available
     bool llmAvailable = false;
     if (config.llmApi && config.llmApi->enabled && !config.llmApi->apiKey.empty()) {
-        // NOTE: Mutates global config. Thread safety depends on single-threaded tree building.
-        auto& orConfig = OpenRouterAPI::GetConfig();
+        auto orConfig = OpenRouterAPI::GetConfig();
         orConfig.apiKey = config.llmApi->apiKey;
         if (!config.llmApi->model.empty()) orConfig.model = config.llmApi->model;
         orConfig.maxTokens = 3000;
+        OpenRouterAPI::SetConfig(orConfig);
         llmAvailable = true;
     } else {
         // Try loading from OpenRouterAPI's own config file

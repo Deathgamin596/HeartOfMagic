@@ -6,7 +6,9 @@
 
 #include <curl/curl.h>
 
+#include <atomic>
 #include <fstream>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <thread>
 
@@ -20,6 +22,10 @@ namespace OpenRouterAPI {
     static bool s_initialized = false;
     static bool s_curlInitialized = false;
     static std::filesystem::path s_configPath = "Data/SKSE/Plugins/SpellLearning/openrouter_config.json";
+    static std::mutex s_configMutex;
+    static std::atomic<bool> s_shutdown{false};
+    static std::mutex s_pendingMutex;
+    static std::vector<std::thread> s_pendingThreads;
 
     bool Initialize() {
         if (s_initialized) return true;
@@ -47,9 +53,10 @@ namespace OpenRouterAPI {
                 
                 s_config.apiKey = j.value("apiKey", "");
                 s_config.model = j.value("model", "anthropic/claude-sonnet-4");
-                s_config.maxTokens = j.value("maxTokens", 4096);
+                s_config.maxTokens = j.value("maxTokens", 64000);
+                s_config.verifySSL = j.value("verifySSL", true);
                 
-                logger::info("OpenRouterAPI: Loaded config, key length: {}", s_config.apiKey.length());
+                logger::info("OpenRouterAPI: Loaded config, key length: {}, verifySSL={}", s_config.apiKey.length(), s_config.verifySSL);
             } catch (const std::exception& e) {
                 logger::error("OpenRouterAPI: Failed to load config: {}", e.what());
             }
@@ -64,6 +71,16 @@ namespace OpenRouterAPI {
     }
 
     void Shutdown() {
+        s_shutdown.store(true, std::memory_order_release);
+
+        {
+            std::lock_guard<std::mutex> lock(s_pendingMutex);
+            for (auto& t : s_pendingThreads) {
+                if (t.joinable()) t.join();
+            }
+            s_pendingThreads.clear();
+        }
+
         if (s_curlInitialized) {
             curl_global_cleanup();
             s_curlInitialized = false;
@@ -72,16 +89,30 @@ namespace OpenRouterAPI {
         s_initialized = false;
     }
 
-    Config& GetConfig() {
+    Config GetConfig() {
+        std::lock_guard<std::mutex> lock(s_configMutex);
         return s_config;
+    }
+
+    void SetConfig(const Config& newConfig) {
+        std::lock_guard<std::mutex> lock(s_configMutex);
+        s_config = newConfig;
+    }
+
+    std::mutex& GetConfigMutex() {
+        return s_configMutex;
     }
 
     void SaveConfig() {
         try {
             json j;
-            j["apiKey"] = s_config.apiKey;
-            j["model"] = s_config.model;
-            j["maxTokens"] = s_config.maxTokens;
+            {
+                std::lock_guard<std::mutex> lock(s_configMutex);
+                j["apiKey"] = s_config.apiKey;
+                j["model"] = s_config.model;
+                j["maxTokens"] = s_config.maxTokens;
+                j["verifySSL"] = s_config.verifySSL;
+            }
 
             std::ofstream file(s_configPath);
             if (!file.is_open()) {
@@ -106,7 +137,8 @@ namespace OpenRouterAPI {
 
     // Internal HTTP POST function
     static std::string HttpPost(const std::string& host, const std::string& path, 
-                                 const std::string& body, const std::string& authHeader) {
+                                 const std::string& body, const std::string& authHeader,
+                                 bool verifySSL) {
         std::string response;
         
         // Initialize CURL handle
@@ -126,8 +158,8 @@ namespace OpenRouterAPI {
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, body.length());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // Disable SSL verification for now
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // Disable host verification for now
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, verifySSL ? 1L : 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, verifySSL ? 2L : 0L);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L); // 30 second timeout
         
         // Set up headers
@@ -197,7 +229,8 @@ namespace OpenRouterAPI {
             "openrouter.ai",
             "/api/v1/chat/completions",
             body,
-            config.apiKey
+            config.apiKey,
+            config.verifySSL
         );
 
         if (httpResponse.empty()) {
@@ -243,32 +276,49 @@ namespace OpenRouterAPI {
     }
 
     Response SendPrompt(const std::string& systemPrompt, const std::string& userPrompt) {
+        std::lock_guard<std::mutex> lock(s_configMutex);
         return SendPromptWithConfig(systemPrompt, userPrompt, s_config);
     }
 
     void SendPromptAsync(const std::string& systemPrompt, const std::string& userPrompt,
                          std::function<void(const Response&)> callback) {
+        if (s_shutdown.load(std::memory_order_acquire)) {
+            logger::warn("OpenRouterAPI: Ignoring async request during shutdown");
+            return;
+        }
+        
         logger::info("OpenRouterAPI: Starting async request thread");
         
-        // Snapshot config so the background thread doesn't race with game-thread mutations
-        Config configCopy = s_config;
+        Config configCopy;
+        {
+            std::lock_guard<std::mutex> lock(s_configMutex);
+            configCopy = s_config;
+        }
         
-        std::thread([systemPrompt, userPrompt, callback, configCopy]() {
+        std::thread t([systemPrompt, userPrompt, callback, configCopy]() {
             logger::info("OpenRouterAPI: Thread started, calling SendPrompt");
             Response response = SendPromptWithConfig(systemPrompt, userPrompt, configCopy);
             
             logger::info("OpenRouterAPI: SendPrompt returned, success={}, content_len={}, error={}", 
                         response.success, response.content.length(), response.error);
             
-            // Call callback on main thread via SKSE task
-            AddTaskToGameThread("OpenRouterCallback", [callback, response]() {
-                logger::info("OpenRouterAPI: SKSE task executing callback");
-                callback(response);
-                logger::info("OpenRouterAPI: Callback completed");
-            });
-        }).detach();
+            if (!s_shutdown.load(std::memory_order_acquire)) {
+                AddTaskToGameThread("OpenRouterCallback", [callback, response]() {
+                    logger::info("OpenRouterAPI: SKSE task executing callback");
+                    callback(response);
+                    logger::info("OpenRouterAPI: Callback completed");
+                });
+            } else {
+                logger::info("OpenRouterAPI: Shutdown in progress, dropping callback");
+            }
+        });
+
+        {
+            std::lock_guard<std::mutex> lock(s_pendingMutex);
+            s_pendingThreads.push_back(std::move(t));
+        }
         
-        logger::info("OpenRouterAPI: Thread detached");
+        logger::info("OpenRouterAPI: Thread launched");
     }
 
 }

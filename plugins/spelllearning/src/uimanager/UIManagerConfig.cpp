@@ -505,7 +505,7 @@ void UIManager::DoSaveUnifiedConfig(const std::string& configData)
         // Also update OpenRouter if LLM settings changed
         if (newConfig.contains("llm") && !newConfig["llm"].is_null()) {
             auto& llm = newConfig["llm"];
-            auto& config = OpenRouterAPI::GetConfig();
+            auto config = OpenRouterAPI::GetConfig();
 
             std::string newKey = SafeJsonValue<std::string>(llm, "apiKey", "");
             if (!newKey.empty() && newKey.find("...") == std::string::npos) {
@@ -513,6 +513,8 @@ void UIManager::DoSaveUnifiedConfig(const std::string& configData)
             }
             config.model = SafeJsonValue<std::string>(llm, "model", config.model);
             config.maxTokens = SafeJsonValue<int>(llm, "maxTokens", config.maxTokens);
+
+            OpenRouterAPI::SetConfig(config);
 
             // Save to OpenRouter's config file too for compatibility
             OpenRouterAPI::SaveConfig();

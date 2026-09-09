@@ -713,6 +713,10 @@ function autoAdvanceLearningTarget(masteredCanonId, school) {
             prerequisites: prereqs,
             requiredXP: reqXP
         }));
+        window.callCpp('NotifyAutoAdvanced', JSON.stringify({
+            formId: candidate.formId,
+            spellName: candidate.name || candidate.formId
+        }));
     }
     state.learningTargets[candidate.school] = candidate.formId;
 
@@ -821,6 +825,17 @@ window.onSpellUnlocked = function(dataStr) {
                 if (targetCanon === canonId) {
                     delete state.learningTargets[school];
                     break;
+                }
+            }
+
+            // Auto-advance to next spell if enabled
+            if (settings.autoAdvanceLearning && state.treeData) {
+                var masteredNode = state.treeData.nodes.find(function(n) {
+                    var nc = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(n) : n.formId;
+                    return nc === canonId;
+                });
+                if (masteredNode && masteredNode.school) {
+                    autoAdvanceLearningTarget(canonId, masteredNode.school);
                 }
             }
 

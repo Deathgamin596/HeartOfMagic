@@ -60,9 +60,7 @@ void UIManager::OnLLMGenerate([[maybe_unused]] const char* argument)
         std::string spellData = request.value("spellData", "");
         std::string promptRules = request.value("promptRules", "");
 
-        // NOTE: Mutates global config for this request. Thread safety depends on
-        // UI callbacks being serialized via AddTaskToGameThread.
-        auto& config = OpenRouterAPI::GetConfig();
+        auto config = OpenRouterAPI::GetConfig();
         if (request.contains("model") && !request["model"].get<std::string>().empty()) {
             config.model = request["model"].get<std::string>();
             logger::info("UIManager: Using model from request: {}", config.model);
@@ -82,6 +80,7 @@ void UIManager::OnLLMGenerate([[maybe_unused]] const char* argument)
                 config.apiKey = newKey;
             }
         }
+        OpenRouterAPI::SetConfig(config);
 
         // Get tree generation settings
         bool allowMultiplePrereqs = request.value("allowMultiplePrereqs", true);
@@ -322,7 +321,7 @@ void UIManager::OnLoadLLMConfig([[maybe_unused]] const char* argument)
         // Initialize OpenRouter (loads config from file)
         OpenRouterAPI::Initialize();
 
-        auto& config = OpenRouterAPI::GetConfig();
+        auto config = OpenRouterAPI::GetConfig();
 
         json result;
         result["apiKey"] = config.apiKey;  // Will be masked in JS
@@ -351,7 +350,7 @@ void UIManager::OnSaveLLMConfig(const char* argument)
         try {
             json request = json::parse(argStr);
 
-            auto& config = OpenRouterAPI::GetConfig();
+            auto config = OpenRouterAPI::GetConfig();
 
             // Only update API key if a new one was provided
             std::string newKey = SafeJsonValue<std::string>(request, "apiKey", "");
@@ -368,6 +367,8 @@ void UIManager::OnSaveLLMConfig(const char* argument)
             if (newMaxTokens > 0 && newMaxTokens <= 100000) {
                 config.maxTokens = newMaxTokens;
             }
+
+            OpenRouterAPI::SetConfig(config);
 
             // Save to file
             OpenRouterAPI::SaveConfig();
