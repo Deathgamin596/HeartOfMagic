@@ -452,6 +452,65 @@ bool ProgressionManager::UnlockSpell(RE::FormID formId)
     return true;
 }
 
+bool ProgressionManager::ForceUnlockSpell(RE::FormID formId)
+{
+    // Get player and spell
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(formId);
+
+    if (!player || !spell) {
+        logger::error("ProgressionManager: Failed to get player or spell {:08X} for force unlock", formId);
+        return false;
+    }
+
+    // Ensure progress entry exists
+    if (m_spellProgress.find(formId) == m_spellProgress.end()) {
+        SpellProgress progress;
+        progress.requiredXP = GetRequiredXP(formId);
+        m_spellProgress[formId] = progress;
+    }
+
+    // Add spell to player
+    player->AddSpell(spell);
+
+    // Mark as unlocked and fully progressed
+    m_spellProgress[formId].unlocked = true;
+    m_spellProgress[formId].progressPercent = 1.0f;
+    m_dirty = true;
+
+    // Remove from early-learned tracking before clearing target, so ClearLearningTarget
+    // doesn't call RemoveEarlySpellFromPlayer which would undo the AddSpell above.
+    auto* effectivenessHook = SpellEffectivenessHook::GetSingleton();
+    effectivenessHook->MarkMastered(formId);
+
+    logger::info("ProgressionManager: Force unlocked spell {} ({:08X})", spell->GetName(), formId);
+
+    // Clear learning target for this school (spell is learned)
+    auto* effect = spell->GetCostliestEffectItem();
+    if (effect && effect->baseEffect) {
+        auto school = effect->baseEffect->GetMagickSkill();
+        std::string schoolName = SpellScanner::GetSchoolName(school);
+        if (schoolName != "Unknown") {
+            ClearLearningTarget(schoolName);
+        } else {
+            // Unknown school — find and clear by formId instead
+            logger::warn("ProgressionManager: Unknown school for force unlocked spell {:08X}, searching by formId", formId);
+            std::string schoolToErase;
+            for (const auto& [s, targetId] : m_learningTargets) {
+                if (targetId == formId) {
+                    schoolToErase = s;
+                    break;
+                }
+            }
+            if (!schoolToErase.empty()) {
+                ClearLearningTarget(schoolToErase);
+            }
+        }
+    }
+
+    return true;
+}
+
 bool ProgressionManager::IsUnlocked(RE::FormID formId) const
 {
     auto it = m_spellProgress.find(formId);

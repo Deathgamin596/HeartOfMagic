@@ -88,6 +88,7 @@ bool UIManager::Initialize()
     m_prismaUI->RegisterJSListener(m_view, "SetSpellXP", OnSetSpellXP);
     m_prismaUI->RegisterJSListener(m_view, "SetTreePrerequisites", OnSetTreePrerequisites);
     m_prismaUI->RegisterJSListener(m_view, "NotifyAutoAdvanced", OnNotifyAutoAdvanced);
+    m_prismaUI->RegisterJSListener(m_view, "AutoUnlockAllRoots", OnAutoUnlockAllRoots);
 
     // Register JS callbacks - Settings (unified config)
     m_prismaUI->RegisterJSListener(m_view, "LoadSettings", OnLoadSettings);  // Legacy

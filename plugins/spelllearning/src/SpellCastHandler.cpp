@@ -91,6 +91,12 @@ RE::BSEventNotifyControl SpellCastHandler::ProcessEvent(
     float magickaCost = spell->CalculateMagickaCost(player);
     float xpGain = (std::max)(1.0f, magickaCost / 10.0f);  // Parentheses to avoid Windows max macro
 
+    // Concentration spells require sustained casting — award bonus XP
+    auto castingType = spell->GetCastingType();
+    if (castingType == RE::MagicSystem::CastingType::kConcentration) {
+        xpGain *= ProgressionManager::GetSingleton()->GetXPSettings().concentrationXPRate;
+    }
+
     // PERFORMANCE: Use trace level for frequent events (only visible with verbose logging)
     logger::trace("SpellCastHandler: Player cast {} ({:08X}) - school: {}, cost: {:.1f}, XP: {:.1f}",
         spell->GetName(), 

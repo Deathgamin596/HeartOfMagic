@@ -409,7 +409,22 @@ function onLearnClick() {
     }
     
     updateDetailsProgression(node);
-    WheelRenderer.updateNodeStates();
+    var changedIds = [node.formId, node.id];
+    if (!isCurrentTarget) {
+        if (settings.learningMode === 'single') {
+            for (var school in state.learningTargets) {
+                if (state.learningTargets[school]) {
+                    changedIds.push(state.learningTargets[school]);
+                }
+            }
+        } else {
+            var existingTarget = state.learningTargets[node.school];
+            if (existingTarget && existingTarget !== node.formId) {
+                changedIds.push(existingTarget);
+            }
+        }
+    }
+    WheelRenderer.updateNodeStates(changedIds);
 }
 
 function onUnlockClick() {
@@ -437,7 +452,7 @@ function onUnlockClick() {
             if (typeof syncDuplicateState === 'function') syncDuplicateState(node);
 
             // Update UI
-            WheelRenderer.updateNodeStates();
+            WheelRenderer.updateNodeStates([canonId, node.id]);
             updateDetailsProgression(node);
 
             // Update the state badge
@@ -464,7 +479,7 @@ function onUnlockClick() {
             if (typeof syncDuplicateState === 'function') syncDuplicateState(node);
             
             // Update UI
-            WheelRenderer.updateNodeStates();
+            WheelRenderer.updateNodeStates([canonId, node.id]);
             updateDetailsProgression(node);
             
             // Update the state badge
@@ -583,12 +598,13 @@ window.onProgressUpdate = function(dataStr) {
         // Update node visuals in all renderers
         if (state.treeData) {
             console.log('[SpellLearning] Updating node states in tree');
-            WheelRenderer.updateNodeStates();
+            if (effectivelyMastered) {
+                WheelRenderer.updateNodeStates();  // full update after mastery/recalc
+            } else {
+                WheelRenderer.updateNodeStates([canonId]);  // dirty update for XP bar only
+            }
             if (typeof CanvasRenderer !== 'undefined') {
                 CanvasRenderer._needsRender = true;
-            }
-            if (typeof SmartRenderer !== 'undefined' && SmartRenderer.refresh) {
-                SmartRenderer.refresh();
             }
         }
         
@@ -736,7 +752,7 @@ function autoAdvanceLearningTarget(masteredCanonId, school) {
     console.log('[SpellLearning] Auto-advanced to: ' + (candidate.name || candidate.formId) + ' (' + candidate.school + ')');
 
     // Update node visuals
-    WheelRenderer.updateNodeStates();
+    WheelRenderer.updateNodeStates([candidate.formId, candidate.id]);
     if (typeof SmartRenderer !== 'undefined' && SmartRenderer.refresh) {
         SmartRenderer.refresh();
     }
@@ -845,6 +861,10 @@ window.onSpellUnlocked = function(dataStr) {
             } else {
                 WheelRenderer.updateNodeStates();
             }
+            
+            if (typeof CanvasRenderer !== 'undefined') {
+                CanvasRenderer._needsRender = true;
+            }
 
             var selectedCanon = state.selectedNode ? ((typeof getCanonicalFormId === 'function') ? getCanonicalFormId(state.selectedNode) : state.selectedNode.formId) : null;
             if (state.selectedNode && selectedCanon === canonId) {
@@ -910,7 +930,7 @@ window.onLearningTargetSet = function(dataStr) {
                         node.state = 'available';
                     }
                     console.log('[SpellLearning] Node ' + (node.name || data.formId) + ' set as learning target');
-                    WheelRenderer.updateNodeStates();
+                    WheelRenderer.updateNodeStates([data.formId, node.id]);
                 }
             }
             

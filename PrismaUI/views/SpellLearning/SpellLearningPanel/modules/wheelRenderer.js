@@ -52,6 +52,12 @@ var WheelRenderer = {
     _pendingPanX: 0,
     _pendingPanY: 0,
     
+    // Dirty-update tracking for updateNodeStates
+    _prevNodeState: new Map(),       // nodeId -> last applied state class
+    _prevNodeProgress: new Map(),    // canonId -> last applied progress width (0-1)
+    _prevLearningNodeIds: new Set(),
+    _prevLearningEdgeKeys: new Set(),
+    
     // Growth recipes per school
     growthRecipes: {},
     
@@ -1195,6 +1201,10 @@ var WheelRenderer = {
         this._visibleNodes.clear();
         this._renderedNodes.clear();
         this._renderedEdges.clear();
+        this._prevNodeState.clear();
+        this._prevNodeProgress.clear();
+        this._prevLearningNodeIds.clear();
+        this._prevLearningEdgeKeys.clear();
 
         this._lodLevel = this.getLOD();
 
@@ -3105,24 +3115,24 @@ var WheelRenderer = {
         this.setZoom(this.zoom + delta);
     },
 
-    updateNodeStates: function() {
+    updateNodeStates: function(changedFormIds) {
         var self = this;
         if (!this.nodes) return;
         
-        this.nodes.forEach(function(node) {
-            var el = self.nodeElements.get(node.id);
-            if (el) {
-                el.classList.remove('learning');
-                el.classList.remove('on-learning-path');
-            }
-        });
+        var hasChanges = changedFormIds && changedFormIds.length > 0;
+        var changedSet = hasChanges ? new Set(changedFormIds) : null;
         
-        if (this.edgeElements) {
-            this.edgeElements.forEach(function(edgeEl) {
-                edgeEl.classList.remove('learning-path');
-            });
+        // Helper: resolve a node's canonical formId and check if it's in the changed set
+        function isNodeChanged(node) {
+            if (!changedSet) return true;
+            var canonId = (typeof getCanonicalFormId === 'function') ? getCanonicalFormId(node) : node.formId;
+            if (canonId && changedSet.has(canonId)) return true;
+            if (node.formId && changedSet.has(node.formId)) return true;
+            if (node.id && changedSet.has(node.id)) return true;
+            return false;
         }
         
+        // Build learning path maps first (needed for both full and dirty modes)
         var learningPathNodes = {};
         var learningPathEdges = {};
         
@@ -3136,17 +3146,44 @@ var WheelRenderer = {
             self.tracePathToCenter(targetNode, learningPathNodes, learningPathEdges);
         }
         
+        // Clear all learning-path markers first (learning target may have changed)
+        // This is cheap and ensures stale markers don't persist on unchanged nodes/edges
         this.nodes.forEach(function(node) {
+            var el = self.nodeElements.get(node.id);
+            if (el) {
+                el.classList.remove('learning', 'on-learning-path');
+            }
+        });
+        
+        if (this.edgeElements) {
+            this.edgeElements.forEach(function(edgeEl) {
+                edgeEl.classList.remove('learning-path');
+            });
+        }
+        
+        // Update node states - only dirty nodes if we have a changed set
+        var nodesToUpdate = hasChanges ? this.nodes.filter(isNodeChanged) : this.nodes;
+        
+        nodesToUpdate.forEach(function(node) {
             var el = self.nodeElements.get(node.id);
             if (!el) return;
             
-            el.classList.remove('locked', 'available', 'unlocked');
-            el.classList.add(node.state || 'locked');
+            var prevState = self._prevNodeState.get(node.id);
+            var newState = node.state || 'locked';
+            
+            // Only touch classList if state actually changed
+            if (prevState !== newState) {
+                el.classList.remove('locked', 'available', 'unlocked');
+                el.classList.add(newState);
+                self._prevNodeState.set(node.id, newState);
+            }
             
             var nodeBg = el.querySelector('.node-bg');
-            if (nodeBg && node.state === 'unlocked') {
-                nodeBg.classList.add('unlocked-bg');
-            } else if (nodeBg) {
+            if (nodeBg && newState === 'unlocked') {
+                if (!nodeBg.classList.contains('unlocked-bg')) {
+                    nodeBg.classList.add('unlocked-bg');
+                }
+            } else if (nodeBg && nodeBg.classList.contains('unlocked-bg')) {
                 nodeBg.classList.remove('unlocked-bg');
             }
             
@@ -3154,14 +3191,18 @@ var WheelRenderer = {
             var isLearningTarget = state.learningTargets[node.school] === _uCanonId || state.learningTargets[node.school] === node.formId;
             var progress = state.spellProgress[_uCanonId];
             
-            if (isLearningTarget && node.state !== 'unlocked') {
-                el.classList.add('learning');
+            if (isLearningTarget && newState !== 'unlocked') {
+                if (!el.classList.contains('learning')) {
+                    el.classList.add('learning');
+                }
             } else if (learningPathNodes[node.id]) {
-                el.classList.add('on-learning-path');
+                if (!el.classList.contains('on-learning-path')) {
+                    el.classList.add('on-learning-path');
+                }
             }
             
             var progressEl = el.querySelector('.node-progress');
-            if (progress && node.state === 'available' && !progress.unlocked) {
+            if (progress && newState === 'available' && !progress.unlocked) {
                 var tier = self.getTierFromLevel(node.level);
                 var tierScaleVal = 1;
                 if (settings.nodeSizeScaling) {
@@ -3169,53 +3210,122 @@ var WheelRenderer = {
                 }
                 var nodeWidth = TREE_CONFIG.wheel.nodeWidth * tierScaleVal;
                 var nodeHeight = TREE_CONFIG.wheel.nodeHeight * tierScaleVal;
-                
-                if (!progressEl) {
-                    progressEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    progressEl.classList.add('node-progress');
-                    progressEl.setAttribute('height', 3);
-                    progressEl.setAttribute('rx', 1.5);
-                    el.appendChild(progressEl);
-                }
-                progressEl.setAttribute('x', -nodeWidth / 2);
-                progressEl.setAttribute('y', nodeHeight / 2 + 2);
                 var percent = progress.required > 0 ? (progress.xp / progress.required) : 0;
-                progressEl.setAttribute('width', (nodeWidth * Math.min(percent, 1)));
-                progressEl.classList.toggle('ready', progress.ready || percent >= 1);
+                var targetWidth = (nodeWidth * Math.min(percent, 1));
+                var prevWidth = self._prevNodeProgress.get(_uCanonId);
+                
+                // Only update progress bar if width actually changed
+                if (prevWidth !== targetWidth) {
+                    if (!progressEl) {
+                        progressEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        progressEl.classList.add('node-progress');
+                        progressEl.setAttribute('height', 3);
+                        progressEl.setAttribute('rx', 1.5);
+                        el.appendChild(progressEl);
+                    }
+                    progressEl.setAttribute('x', -nodeWidth / 2);
+                    progressEl.setAttribute('y', nodeHeight / 2 + 2);
+                    progressEl.setAttribute('width', targetWidth);
+                    progressEl.classList.toggle('ready', progress.ready || percent >= 1);
+                    self._prevNodeProgress.set(_uCanonId, targetWidth);
+                }
             } else if (progressEl) {
                 progressEl.remove();
+                self._prevNodeProgress.delete(_uCanonId);
             }
         });
         
-        if (this.edgeElements) {
-            this.edgeElements.forEach(function(edgeEl, edgeKey) {
-                edgeEl.classList.remove('unlocked-path');
-                edgeEl.removeAttribute('data-school');
-                
-                if (learningPathEdges[edgeKey]) {
-                    edgeEl.classList.add('learning-path');
+        // Ensure all current learning-path nodes have their markers
+        // (includes unchanged nodes whose path status changed due to learning target switch)
+        if (hasChanges) {
+            for (var lpNodeId in learningPathNodes) {
+                if (!changedSet.has(lpNodeId)) {
+                    var lpEl = self.nodeElements.get(lpNodeId);
+                    if (lpEl && !lpEl.classList.contains('on-learning-path')) {
+                        lpEl.classList.add('on-learning-path');
+                    }
                 }
-            });
+            }
+            // Ensure active learning target node has its marker
+            for (var school in state.learningTargets) {
+                var targetFormId = state.learningTargets[school];
+                if (!targetFormId) continue;
+                var targetNode = self._nodeByFormId ? self._nodeByFormId.get(targetFormId) : null;
+                if (!targetNode || targetNode.state === 'unlocked') continue;
+                if (!changedSet.has(targetNode.id)) {
+                    var targetEl = self.nodeElements.get(targetNode.id);
+                    if (targetEl && !targetEl.classList.contains('learning')) {
+                        targetEl.classList.add('learning');
+                    }
+                }
+            }
         }
         
-        if (this.edgeElements && this.nodes) {
+        // Update edges - only dirty edges if we have a changed set
+        if (hasChanges) {
+            // Only update edges connected to changed nodes, plus all current learning-path edges
+            // (learning target may have changed, requiring path updates on unchanged nodes)
+            var changedNodeIds = new Set();
+            nodesToUpdate.forEach(function(n) { changedNodeIds.add(n.id); });
+            
             var nodeMap = {};
             self.nodes.forEach(function(n) { nodeMap[n.id] = n; });
             
             this.edgeElements.forEach(function(edgeEl, edgeKey) {
-                if (edgeEl.classList.contains('learning-path')) return;
-                
                 var parts = edgeKey.split('-');
                 var fromId = parts[0];
                 var toId = parts[1];
-                var fromNode = nodeMap[fromId];
-                var toNode = nodeMap[toId];
-                
-                if (fromNode && toNode && fromNode.state === 'unlocked' && toNode.state === 'unlocked') {
-                    edgeEl.classList.add('unlocked-path');
-                    edgeEl.setAttribute('data-school', toNode.school || fromNode.school);
+                if (changedNodeIds.has(fromId) || changedNodeIds.has(toId) || learningPathEdges[edgeKey]) {
+                    self._updateEdgeState(edgeEl, edgeKey, learningPathEdges, nodeMap);
                 }
             });
+        } else {
+            // Full edge update
+            if (this.edgeElements && this.nodes) {
+                var nodeMap = {};
+                self.nodes.forEach(function(n) { nodeMap[n.id] = n; });
+                
+                this.edgeElements.forEach(function(edgeEl, edgeKey) {
+                    self._updateEdgeState(edgeEl, edgeKey, learningPathEdges, nodeMap);
+                });
+            }
+        }
+        
+        // Update learning path tracking for next call
+        this._prevLearningNodeIds.clear();
+        for (var nid in learningPathNodes) {
+            this._prevLearningNodeIds.add(nid);
+        }
+        this._prevLearningEdgeKeys.clear();
+        for (var ek in learningPathEdges) {
+            this._prevLearningEdgeKeys.add(ek);
+        }
+    },
+    
+    _updateEdgeState: function(edgeEl, edgeKey, learningPathEdges, nodeMap) {
+        var wasLearningPath = edgeEl.classList.contains('learning-path');
+        var isLearningPath = !!learningPathEdges[edgeKey];
+        
+        if (isLearningPath && !wasLearningPath) {
+            edgeEl.classList.add('learning-path');
+        } else if (!isLearningPath && wasLearningPath) {
+            edgeEl.classList.remove('learning-path');
+        }
+        
+        var wasUnlockedPath = edgeEl.classList.contains('unlocked-path');
+        var parts = edgeKey.split('-');
+        var fromId = parts[0];
+        var toId = parts[1];
+        var fromNode = nodeMap[fromId];
+        var toNode = nodeMap[toId];
+        var isUnlockedPath = fromNode && toNode && fromNode.state === 'unlocked' && toNode.state === 'unlocked';
+        
+        if (isUnlockedPath && !wasUnlockedPath) {
+            edgeEl.classList.add('unlocked-path');
+            edgeEl.setAttribute('data-school', toNode.school || fromNode.school);
+        } else if (!isUnlockedPath && wasUnlockedPath) {
+            edgeEl.classList.remove('unlocked-path');
+            edgeEl.removeAttribute('data-school');
         }
     },
     

@@ -663,6 +663,37 @@ function initializeSettings() {
             }
         });
     }
+
+    // Unlock All Roots button
+    var unlockAllRootsBtn = document.getElementById('unlockAllRootsBtn');
+    if (unlockAllRootsBtn) {
+        unlockAllRootsBtn.addEventListener('click', function() {
+            if (!state.treeData || !state.treeData.schools) {
+                console.warn('[SpellLearning] No tree data loaded for unlock all roots');
+                return;
+            }
+
+            var rootFormIds = [];
+            for (var schoolName in state.treeData.schools) {
+                var schoolData = state.treeData.schools[schoolName];
+                if (schoolData.root && schoolData.root.formId) {
+                    rootFormIds.push(schoolData.root.formId);
+                } else if (schoolData.root && typeof schoolData.root === 'string') {
+                    rootFormIds.push(schoolData.root);
+                }
+            }
+
+            if (rootFormIds.length === 0) {
+                console.warn('[SpellLearning] No root spells found in tree');
+                return;
+            }
+
+            console.log('[SpellLearning] Unlocking all roots:', rootFormIds);
+            if (window.callCpp) {
+                window.callCpp('AutoUnlockAllRoots', JSON.stringify(rootFormIds));
+            }
+        });
+    }
     
     // Check for schools needing attention periodically and update UI
     // Only runs when panel is visible to avoid wasting CPU
@@ -992,6 +1023,29 @@ function initializeSettings() {
         });
     }
     
+    // Concentration XP rate slider (shows "x1.0" format, range 1.0-5.0)
+    var concSlider = document.getElementById('concentrationXPRateSlider');
+    var concValue = document.getElementById('concentrationXPRateValue');
+    if (concSlider && concValue) {
+        // Slider uses 1-50 internally, divide by 10 for 1.0-5.0 display
+        var concRate = settings.concentrationXPRate || 1.0;
+        concSlider.value = Math.round(concRate * 10);
+        concValue.textContent = 'x' + concRate.toFixed(1);
+        updateSliderFill(concSlider);
+        
+        concSlider.addEventListener('input', function() {
+            var val = parseInt(this.value) / 10.0;
+            settings.concentrationXPRate = val;
+            concValue.textContent = 'x' + val.toFixed(1);
+            updateSliderFill(this);
+        });
+        
+        concSlider.addEventListener('change', function() {
+            console.log('[SpellLearning] Concentration XP rate:', settings.concentrationXPRate);
+            autoSaveSettings();
+        });
+    }
+    
     setupSlider('xpDirectSlider', 'xpDirectValue', 'xpMultiplierDirect');
     setupSlider('xpSchoolSlider', 'xpSchoolValue', 'xpMultiplierSchool');
     setupSlider('xpAnySlider', 'xpAnyValue', 'xpMultiplierAny');
@@ -1249,6 +1303,8 @@ function saveUnifiedConfig() {
         // Scan mode
         scanModeTomes: document.getElementById('scanModeTomes') ? 
             document.getElementById('scanModeTomes').checked : true,
+        autoLearnRootSpells: document.getElementById('autoLearnRootSpells') ?
+            document.getElementById('autoLearnRootSpells').checked : state.treeGeneration.autoLearnRootSpells,
         
         // Per-node XP overrides
         xpOverrides: xpOverrides,
@@ -2079,6 +2135,13 @@ window.onUnifiedConfigLoaded = function(dataStr) {
                 scanModeCheckbox.checked = data.scanModeTomes;
             }
         }
+        if (data.autoLearnRootSpells !== undefined) {
+            var autoLearnRootCheckbox = document.getElementById('autoLearnRootSpells');
+            if (autoLearnRootCheckbox) {
+                autoLearnRootCheckbox.checked = data.autoLearnRootSpells;
+            }
+            state.treeGeneration.autoLearnRootSpells = data.autoLearnRootSpells;
+        }
         
         // === Heart Animation Settings ===
         settings.heartAnimationEnabled = data.heartAnimationEnabled !== false;
@@ -2398,6 +2461,18 @@ window.onModdedXPSourceRegistered = function(dataStr) {
             data.multiplier || 100, data.cap || 25, data.enabled !== false);
     } catch (e) {
         console.error('[SpellLearning] Failed to parse modded XP source data:', e);
+    }
+};
+
+/**
+ * C++ -> JS callback when AutoUnlockAllRoots completes.
+ */
+window.onAutoUnlockAllRootsComplete = function(dataStr) {
+    try {
+        var data = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
+        console.log('[SpellLearning] AutoUnlockAllRoots complete:', data.unlocked || 0, 'unlocked,', data.failed || 0, 'failed');
+    } catch (e) {
+        console.error('[SpellLearning] Failed to parse AutoUnlockAllRoots result:', e);
     }
 };
 

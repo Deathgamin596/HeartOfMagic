@@ -609,6 +609,15 @@ function initializePanel() {
             }
         });
     }
+
+    // Auto-learn root toggle
+    var autoLearnRootToggle = document.getElementById('autoLearnRootSpells');
+    if (autoLearnRootToggle) {
+        autoLearnRootToggle.addEventListener('change', function() {
+            state.treeGeneration.autoLearnRootSpells = this.checked;
+            if (typeof autoSaveSettings === 'function') autoSaveSettings();
+        });
+    }
     safeAddListener('saveBySchoolBtn', 'click', onSaveBySchoolClick);
     safeAddListener('copyBtn', 'click', onCopyClick);
     safeAddListener('pasteBtn', 'click', onPasteClick);

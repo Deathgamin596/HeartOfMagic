@@ -1099,7 +1099,7 @@ function loadTreeData(jsonData, switchToTreeTab, isManualImport) {
         WheelRenderer.setLLMGroups(rawData.llm_groups);
     }
     
-    // Request spell data for all formIds
+    // Request spell data for all formIds - render once after cache populates names
     SpellCache.requestBatch(result.allFormIds, function() {
         result.nodes.forEach(function(node) {
             TreeParser.updateNodeFromCache(node);
@@ -1108,9 +1108,6 @@ function loadTreeData(jsonData, switchToTreeTab, isManualImport) {
         setTreeStatus('Loaded ' + result.nodes.length + ' spells' + 
             (SmartRenderer.activeRenderer === 'canvas' ? ' (Canvas mode)' : ''));
     });
-
-    // Initial render - use SmartRenderer to auto-switch based on node count
-    SmartRenderer.setData(result.nodes, result.edges, result.schools);
     
     var emptyState = document.getElementById('empty-state');
     if (emptyState) emptyState.classList.add('hidden');

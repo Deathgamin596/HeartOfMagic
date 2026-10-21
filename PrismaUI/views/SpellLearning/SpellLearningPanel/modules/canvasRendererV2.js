@@ -382,6 +382,15 @@ var CanvasRenderer = {
             e.preventDefault();
             self.onWheel(e);
         }, { passive: false });
+
+        // Stop panning if ALT is released mid-pan
+        window.addEventListener('keyup', function(e) {
+            if (e.key === 'Alt' && self.isPanning) {
+                self.isPanning = false;
+                self.canvas.style.cursor = self.hoveredNode ? 'pointer' : 'grab';
+                self._needsRender = true;
+            }
+        });
         
         this.canvas.addEventListener('click', function(e) {
             self.onClick(e);
@@ -760,18 +769,29 @@ var CanvasRenderer = {
     // =========================================================================
     
     onMouseDown: function(e) {
-        if (e.button === 0 || e.button === 2) {
+        // Require ALT key for panning
+        if ((e.button === 0 || e.button === 2) && e.altKey) {
             this.isPanning = true;
             this.panStartX = e.clientX - this.panX;
             this.panStartY = e.clientY - this.panY;
             this.canvas.style.cursor = 'grabbing';
             this._needsRender = true;
+        } else if (e.button === 0 || e.button === 2) {
+            // Normal click without ALT - don't pan, allow node selection
+            this.canvas.style.cursor = 'grab';
         }
     },
     
     onMouseMove: function(e) {
         var self = this;
         if (this.isPanning) {
+            // Stop panning if ALT is released
+            if (!e.altKey) {
+                this.isPanning = false;
+                this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
+                this._needsRender = true;
+                return;
+            }
             // Batch pan updates using RAF to prevent multiple renders per frame
             this._pendingPanX = e.clientX - this.panStartX;
             this._pendingPanY = e.clientY - this.panStartY;
@@ -792,7 +812,7 @@ var CanvasRenderer = {
 
             if (node !== this.hoveredNode) {
                 this.hoveredNode = node;
-                this.canvas.style.cursor = node ? 'pointer' : 'grab';
+                this.canvas.style.cursor = e.altKey ? 'grab' : (node ? 'pointer' : 'grab');
                 this._needsRender = true;
 
                 if (node) {

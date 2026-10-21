@@ -147,6 +147,7 @@ json GenerateDefaultConfig() {
         {"learningPathColor", "#00ffff"},
         {"activeProfile", "normal"},
         {"learningMode", "perSchool"},
+        {"autoLearnRootSpells", false},
         {"xpGlobalMultiplier", 1},
         {"xpMultiplierDirect", 100},
         {"xpMultiplierSchool", 50},
@@ -316,6 +317,13 @@ void UIManager::OnLoadUnifiedConfig([[maybe_unused]] const char* argument)
         logger::info("UIManager: Updated pauseGameOnFocus from config: {}", pauseGame);
     }
 
+    // Update auto-learn root spells setting
+    if (unifiedConfig.contains("autoLearnRootSpells") && !unifiedConfig["autoLearnRootSpells"].is_null()) {
+        bool autoLearnRoot = unifiedConfig["autoLearnRootSpells"].get<bool>();
+        GetSingleton()->SetAutoLearnRootSpells(autoLearnRoot);
+        logger::info("UIManager: Updated autoLearnRootSpells from config: {}", autoLearnRoot);
+    }
+
     // Update ProgressionManager with loaded XP settings
     // All fields are guaranteed to exist from defaults, but use SafeJsonValue for extra safety
     ProgressionManager::XPSettings xpSettings;
@@ -324,6 +332,7 @@ void UIManager::OnLoadUnifiedConfig([[maybe_unused]] const char* argument)
     xpSettings.multiplierDirect = SafeJsonValue<float>(unifiedConfig, "xpMultiplierDirect", 100.0f) / 100.0f;
     xpSettings.multiplierSchool = SafeJsonValue<float>(unifiedConfig, "xpMultiplierSchool", 50.0f) / 100.0f;
     xpSettings.multiplierAny = SafeJsonValue<float>(unifiedConfig, "xpMultiplierAny", 10.0f) / 100.0f;
+    xpSettings.concentrationXPRate = SafeJsonValue<float>(unifiedConfig, "concentrationXPRate", 1.0f);
     // XP caps (max contribution from each source)
     xpSettings.capAny = SafeJsonValue<float>(unifiedConfig, "xpCapAny", 5.0f);
     xpSettings.capSchool = SafeJsonValue<float>(unifiedConfig, "xpCapSchool", 15.0f);
@@ -445,6 +454,12 @@ void UIManager::DoSaveUnifiedConfig(const std::string& configData)
             GetSingleton()->SetPauseGameOnFocus(pauseGame);
         }
 
+        // Update auto-learn root spells if changed
+        if (newConfig.contains("autoLearnRootSpells")) {
+            bool autoLearnRoot = newConfig["autoLearnRootSpells"].get<bool>();
+            GetSingleton()->SetAutoLearnRootSpells(autoLearnRoot);
+        }
+
         // Update XP settings in ProgressionManager if changed
         ProgressionManager::XPSettings xpSettings;
         xpSettings.learningMode = SafeJsonValue<std::string>(existingConfig, "learningMode", "perSchool");
@@ -452,6 +467,7 @@ void UIManager::DoSaveUnifiedConfig(const std::string& configData)
         xpSettings.multiplierDirect = SafeJsonValue<float>(existingConfig, "xpMultiplierDirect", 100.0f) / 100.0f;
         xpSettings.multiplierSchool = SafeJsonValue<float>(existingConfig, "xpMultiplierSchool", 50.0f) / 100.0f;
         xpSettings.multiplierAny = SafeJsonValue<float>(existingConfig, "xpMultiplierAny", 10.0f) / 100.0f;
+        xpSettings.concentrationXPRate = SafeJsonValue<float>(existingConfig, "concentrationXPRate", 1.0f);
         // XP caps (max contribution from each source)
         xpSettings.capAny = SafeJsonValue<float>(existingConfig, "xpCapAny", 5.0f);
         xpSettings.capSchool = SafeJsonValue<float>(existingConfig, "xpCapSchool", 15.0f);

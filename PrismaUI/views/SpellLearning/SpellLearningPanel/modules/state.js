@@ -95,6 +95,7 @@ var settings = {
     xpMultiplierDirect: 100,
     xpMultiplierSchool: 50,
     xpMultiplierAny: 10,
+    concentrationXPRate: 1.0,  // 1.0-5.0 multiplier for concentration spells
     // XP caps (max % of total XP from each source)
     xpCapAny: 5,        // Max 5% from casting any spell
     xpCapSchool: 15,    // Max 15% from same-school spells
@@ -224,6 +225,7 @@ var settings = {
 
         // === ROOT CONFIGURATION ===
         rootCount: 1,                   // 1 = single root with element branches, 3 = separate element roots
+        autoLearnRootSpells: false,     // Auto-learn root spells when tree is loaded
         // rootCount=1: Root (Sparks) -> Flames -> fire spells, Frostbite -> frost spells
         // rootCount=3: Three independent roots (Flames, Frostbite, Sparks) each start own tree
 

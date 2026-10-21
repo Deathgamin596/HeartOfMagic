@@ -27,6 +27,8 @@ public:
     // Settings
     void SetPauseGameOnFocus(bool pause) { m_pauseGameOnFocus = pause; }
     bool GetPauseGameOnFocus() const { return m_pauseGameOnFocus; }
+    void SetAutoLearnRootSpells(bool enable) { m_autoLearnRootSpells = enable; }
+    bool GetAutoLearnRootSpells() const { return m_autoLearnRootSpells; }
 
     // Send data to Scanner Tab
     void SendSpellData(const std::string& jsonData);
@@ -112,6 +114,7 @@ private:
     static void OnSetPauseGameOnFocus(const char* argument);
     static void OnSetTreePrerequisites(const char* argument);
     static void OnNotifyAutoAdvanced(const char* argument);
+    static void OnAutoUnlockAllRoots(const char* argument);
     
     // Settings callbacks (legacy)
     static void OnLoadSettings(const char* argument);
@@ -163,6 +166,7 @@ private:
     bool m_isInitialized = false;
     bool m_hasFocus = false;  // Track if we have focus (for main menu → game fix)
     bool m_pauseGameOnFocus = false;  // Default false to avoid input conflicts with menu mods in heavy modlists
+    bool m_autoLearnRootSpells = false;
     
     // Config save debouncing - prevent duplicate saves and defer off critical frame
     std::mutex m_configSaveMutex;

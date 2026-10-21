@@ -99,6 +99,7 @@ public:
     // Spell unlocking
     bool CanUnlock(RE::FormID formId) const;
     bool UnlockSpell(RE::FormID formId);
+    bool ForceUnlockSpell(RE::FormID formId);  // Unlock without XP requirement (for auto-learn roots)
     bool IsUnlocked(RE::FormID formId) const;
     
     // Check if a spell is available to learn (has progress entry, not yet unlocked)
@@ -108,9 +109,10 @@ public:
     // =========================================================================
     // SKSE CO-SAVE SERIALIZATION
     // =========================================================================
-    static constexpr uint32_t kSerializationVersion = 2;
+    static constexpr uint32_t kSerializationVersion = 3;
     static constexpr uint32_t kProgressRecord = 'SLPR';  // Spell Learning Progress Record
     static constexpr uint32_t kTargetsRecord = 'SLTR';   // Spell Learning Targets Record
+    static constexpr uint32_t kTargetPrereqsRecord = 'SLTP';  // Target Prerequisites Record
     
     // Called by SKSE serialization callbacks
     void OnGameSaved(SKSE::SerializationInterface* a_intfc);
@@ -145,6 +147,7 @@ public:
         float multiplierDirect = 1.0f;   // 0.0-1.0 for direct prerequisite spells
         float multiplierSchool = 0.5f;   // 0.0-1.0 for same school spells
         float multiplierAny = 0.1f;      // 0.0-1.0 for any spell
+        float concentrationXPRate = 1.0f; // 1.0-5.0 multiplier for concentration spells
         // XP caps (max % contribution from each source, 0-100)
         float capAny = 5.0f;             // Max 5% from any spell casts
         float capSchool = 15.0f;         // Max 15% from same-school casts

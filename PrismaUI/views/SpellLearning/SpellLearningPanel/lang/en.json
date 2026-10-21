@@ -62,6 +62,7 @@
     "filter.blacklist": "<span class=\"btn-icon\">[-]</span> Blacklist",
     "filter.title": "Filters",
     "filter.tomesOnly": "Tomes only",
+    "filter.autoLearnRoot": "Auto-learn roots",
     "filter.whitelist": "<span class=\"btn-icon\">[+]</span> Whitelist",
 
     "footer.import": "Import",
@@ -311,6 +312,8 @@
     "settings.devDebug.title": "Developer & Debug",
     "settings.devDebug.verboseLogging": "Verbose Logging",
     "settings.devDebug.verboseLoggingDesc": "Extra console logging for troubleshooting",
+    "settings.devDebug.unlockAllRoots": "Unlock All Roots",
+    "settings.devDebug.unlockAllRootsDesc": "Force-learn every tree root spell",
     "settings.earlyLearning.binaryEffectThreshold": "Binary Effect Threshold",
     "settings.earlyLearning.desc": "Grant spells early at reduced power. Power increases as you practice.",
     "settings.earlyLearning.enable": "Enable Early Learning",

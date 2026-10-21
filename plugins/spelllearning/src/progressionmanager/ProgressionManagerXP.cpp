@@ -439,6 +439,19 @@ float ProgressionManager::GetRequiredXP(RE::FormID formId) const
 {
     auto it = m_spellProgress.find(formId);
     if (it != m_spellProgress.end() && it->second.requiredXP > 0) {
+        // Validate cached requiredXP against spell tier.
+        // After save-load, requiredXP may be the constructor default (100)
+        // even for higher-tier spells. Detect and correct this.
+        auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(formId);
+        if (spell) {
+            std::string tier = SpellScanner::DetermineSpellTier(spell);
+            float tierXP = GetXPForTier(tier);
+            if (std::abs(tierXP - it->second.requiredXP) > 0.01f) {
+                logger::trace("ProgressionManager: Corrected requiredXP for {:08X} from {:.0f} to {:.0f} (tier: {})",
+                    formId, it->second.requiredXP, tierXP, tier);
+                return tierXP;
+            }
+        }
         return it->second.requiredXP;
     }
 

@@ -104,6 +104,13 @@
                                 </label>
                                 <span class="scan-filter-label" data-i18n="filter.tomesOnly">Tomes only</span>
                             </div>
+                            <div class="scan-filter-toggle">
+                                <label class="toggle-switch toggle-sm">
+                                    <input type="checkbox" id="autoLearnRootSpells">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="scan-filter-label" data-i18n="filter.autoLearnRoot">Auto-learn roots</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1056,6 +1063,18 @@
                         </div>
                         <p class="setting-note" data-i18n="settings.progression.multipliersNote">Multipliers determine how much XP you gain per cast.</p>
                         
+                        <!-- Concentration XP Rate -->
+                        <div class="setting-row slider-row">
+                            <div class="setting-info">
+                                <span class="setting-label">Concentration XP Rate</span>
+                                <span class="setting-desc">Bonus multiplier for held/channeled concentration spells (1.0x - 5.0x)</span>
+                            </div>
+                            <div class="slider-container">
+                                <input type="range" id="concentrationXPRateSlider" min="1" max="50" value="10" class="setting-slider">
+                                <span id="concentrationXPRateValue" class="slider-value">x1.0</span>
+                            </div>
+                        </div>
+                        
                         <!-- XP Caps - Max contribution from each source -->
                         <div class="settings-subsection">
                             <span class="subsection-title" data-i18n="settings.progression.xpCaps">XP Caps (Maximum Contribution)</span>
@@ -1505,6 +1524,17 @@
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
+                        </div>
+                        
+                        <!-- Unlock All Roots -->
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <span class="setting-label" data-i18n="settings.devDebug.unlockAllRoots">Unlock All Roots</span>
+                                <span class="setting-desc" data-i18n="settings.devDebug.unlockAllRootsDesc">Force-learn every tree root spell</span>
+                            </div>
+                            <button id="unlockAllRootsBtn" class="action-btn" style="padding: 4px 12px; font-size: 0.85em;">
+                                <span class="btn-icon">[U]</span> Unlock All Roots
+                            </button>
                         </div>
                     </div>
                 </div>

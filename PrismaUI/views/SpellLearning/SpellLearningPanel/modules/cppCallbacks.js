@@ -950,14 +950,18 @@ function resolveCanonicalId(formId) {
 function recalculateNodeAvailability() {
     if (!state.treeData || !state.treeData.nodes) return 0;
     
-    // Build a map for quick lookup
+    // Build maps for quick lookup
     var nodeMap = {};
+    var duplicateMap = {};  // canonicalId -> [node, ...]  (precomputed to avoid O(n) scans in hot path)
     state.treeData.nodes.forEach(function(node) {
         nodeMap[node.id] = node;
         // Also map by formId for lookups
         if (node.formId && node.formId !== node.id) {
             nodeMap[node.formId] = node;
         }
+        var canonId = getCanonicalFormId(node);
+        if (!duplicateMap[canonId]) duplicateMap[canonId] = [];
+        duplicateMap[canonId].push(node);
     });
     
     // Helper: check if a prereq is truly mastered/already-known (not just learning)
@@ -1001,8 +1005,8 @@ function recalculateNodeAvailability() {
             return true;
         }
 
-        // Check if any duplicate sibling is unlocked
-        var siblings = findDuplicateSiblings(prereqNode);
+        // Check if any duplicate sibling is unlocked (O(1) lookup via precomputed map)
+        var siblings = duplicateMap[canonicalId] || [];
         for (var i = 0; i < siblings.length; i++) {
             if (siblings[i].state === 'unlocked') return true;
         }

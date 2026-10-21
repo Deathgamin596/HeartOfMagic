@@ -87,6 +87,16 @@ void UIManager::OnLoadSpellTree([[maybe_unused]] const char* argument)
                                                 reqXP = pm->GetRequiredXP(formId);
                                             }
                                             if (reqXP > 0.0f) {
+                                                auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(formId);
+                                                if (spell) {
+                                                    std::string tier = SpellScanner::DetermineSpellTier(spell);
+                                                    float tierXP = pm->GetXPForTier(tier);
+                                                    if (std::abs(tierXP - reqXP) > 0.01f) {
+                                                        logger::trace("UIManager: Corrected requiredXP for {:08X} from {:.0f} to {:.0f} (tier: {})",
+                                                            formId, reqXP, tierXP, tier);
+                                                        reqXP = tierXP;
+                                                    }
+                                                }
                                                 pm->SetRequiredXP(formId, reqXP);
                                                 xpSyncCount++;
                                             }
@@ -101,6 +111,30 @@ void UIManager::OnLoadSpellTree([[maybe_unused]] const char* argument)
 
                     if (xpSyncCount > 0) {
                         logger::info("UIManager: Synced requiredXP for {} spells from tree to ProgressionManager", xpSyncCount);
+                    }
+
+                    // Auto-learn root spells if enabled
+                    if (instance->GetAutoLearnRootSpells() && treeData.contains("schools")) {
+                        auto* pm = ProgressionManager::GetSingleton();
+                        int autoLearned = 0;
+                        for (auto& [schoolName, schoolData] : treeData["schools"].items()) {
+                            if (!schoolData.contains("root") || !schoolData["root"].is_string()) continue;
+                            std::string rootIdStr = schoolData["root"].get<std::string>();
+                            try {
+                                RE::FormID rootFormId = std::stoul(rootIdStr, nullptr, 0);
+                                if (rootFormId == 0) continue;
+                                if (pm->ForceUnlockSpell(rootFormId)) {
+                                    autoLearned++;
+                                    instance->NotifySpellUnlocked(rootFormId, true);
+                                    instance->UpdateSpellState(rootIdStr, "unlocked");
+                                }
+                            } catch (const std::exception& e) {
+                                logger::warn("UIManager: Failed to auto-learn root spell '{}': {}", rootIdStr, e.what());
+                            }
+                        }
+                        if (autoLearned > 0) {
+                            logger::info("UIManager: Auto-learned {} root spells", autoLearned);
+                        }
                     }
 
                     // Fetch spell info for all formIds and send as batch
@@ -481,6 +515,73 @@ void UIManager::OnPreReqMasterScore(const char* argument)
             response["success"] = false;
             response["error"] = e.what();
             instance->m_prismaUI->InteropCall(instance->m_view, "onPreReqMasterComplete", response.dump().c_str());
+        }
+    });
+}
+
+void UIManager::OnAutoUnlockAllRoots(const char* argument)
+{
+    if (!argument || strlen(argument) == 0) {
+        logger::warn("UIManager: AutoUnlockAllRoots - no data provided");
+        return;
+    }
+
+    std::string argStr(argument);
+
+    AddTaskToGameThread("AutoUnlockAllRoots", [argStr]() {
+        auto* instance = GetSingleton();
+        if (!instance || !instance->m_prismaUI) return;
+
+        try {
+            json rootIds = json::parse(argStr);
+            if (!rootIds.is_array()) {
+                logger::error("UIManager: AutoUnlockAllRoots - expected JSON array");
+                return;
+            }
+
+            auto* pm = ProgressionManager::GetSingleton();
+            int unlocked = 0;
+            int failed = 0;
+
+            for (const auto& rootIdJson : rootIds) {
+                if (!rootIdJson.is_string()) {
+                    failed++;
+                    continue;
+                }
+
+                std::string formIdStr = rootIdJson.get<std::string>();
+                RE::FormID formId = 0;
+                try {
+                    formId = std::stoul(formIdStr, nullptr, 0);
+                } catch (const std::exception& e) {
+                    logger::warn("UIManager: AutoUnlockAllRoots - failed to parse formId '{}': {}", formIdStr, e.what());
+                    failed++;
+                    continue;
+                }
+
+                if (formId == 0) {
+                    failed++;
+                    continue;
+                }
+
+                if (pm->ForceUnlockSpell(formId)) {
+                    unlocked++;
+                    instance->NotifySpellUnlocked(formId, true);
+                    instance->UpdateSpellState(formIdStr, "unlocked");
+                } else {
+                    failed++;
+                }
+            }
+
+            logger::info("UIManager: AutoUnlockAllRoots complete - unlocked: {}, failed: {}", unlocked, failed);
+
+            nlohmann::json response;
+            response["unlocked"] = unlocked;
+            response["failed"] = failed;
+            instance->m_prismaUI->InteropCall(instance->m_view, "onAutoUnlockAllRootsComplete", response.dump().c_str());
+
+        } catch (const std::exception& e) {
+            logger::error("UIManager: AutoUnlockAllRoots exception: {}", e.what());
         }
     });
 }

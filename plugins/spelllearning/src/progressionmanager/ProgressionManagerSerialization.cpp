@@ -48,6 +48,7 @@ void ProgressionManager::OnGameSaved(SKSE::SerializationInterface* a_intfc)
     a_intfc->WriteRecordData(&numProgress, sizeof(numProgress));
 
     // Write each progress: formId, progressPercent, unlocked, [v2: modded source XP]
+    // [v3: requiredXP, xpFromAny, xpFromSchool, xpFromDirect, xpFromSelf]
     for (auto& [formId, progress] : m_spellProgress) {
         a_intfc->WriteRecordData(&formId, sizeof(formId));
         a_intfc->WriteRecordData(&progress.progressPercent, sizeof(progress.progressPercent));
@@ -63,9 +64,35 @@ void ProgressionManager::OnGameSaved(SKSE::SerializationInterface* a_intfc)
             a_intfc->WriteRecordData(name.c_str(), nameLen);
             a_intfc->WriteRecordData(&xp, sizeof(xp));
         }
+
+        // v3: Write requiredXP and per-source XP accumulators
+        a_intfc->WriteRecordData(&progress.requiredXP, sizeof(progress.requiredXP));
+        a_intfc->WriteRecordData(&progress.xpFromAny, sizeof(progress.xpFromAny));
+        a_intfc->WriteRecordData(&progress.xpFromSchool, sizeof(progress.xpFromSchool));
+        a_intfc->WriteRecordData(&progress.xpFromDirect, sizeof(progress.xpFromDirect));
+        a_intfc->WriteRecordData(&progress.xpFromSelf, sizeof(progress.xpFromSelf));
     }
 
     logger::info("ProgressionManager: Saved {} spell progress entries to co-save", numProgress);
+
+    // Write target prerequisites record (v3)
+    if (!a_intfc->OpenRecord(kTargetPrereqsRecord, kSerializationVersion)) {
+        logger::error("ProgressionManager: Failed to open target prerequisites record for writing");
+        return;
+    }
+
+    uint32_t numTargetPrereqs = static_cast<uint32_t>(m_targetPrerequisites.size());
+    a_intfc->WriteRecordData(&numTargetPrereqs, sizeof(numTargetPrereqs));
+    for (auto& [targetId, prereqs] : m_targetPrerequisites) {
+        a_intfc->WriteRecordData(&targetId, sizeof(targetId));
+        uint32_t prereqCount = static_cast<uint32_t>(prereqs.size());
+        a_intfc->WriteRecordData(&prereqCount, sizeof(prereqCount));
+        for (RE::FormID prereqId : prereqs) {
+            a_intfc->WriteRecordData(&prereqId, sizeof(prereqId));
+        }
+    }
+
+    logger::info("ProgressionManager: Saved {} target prerequisite entries to co-save", numTargetPrereqs);
     m_dirty = false;
 }
 
@@ -79,8 +106,8 @@ void ProgressionManager::OnGameLoaded(SKSE::SerializationInterface* a_intfc)
     uint32_t type, version, length;
 
     while (a_intfc->GetNextRecordInfo(type, version, length)) {
-        if (version != kSerializationVersion && version != 1) {
-            logger::warn("ProgressionManager: Skipping record with unsupported version (got {}, expected {} or 1)",
+        if (version != kSerializationVersion && version != 1 && version != 2) {
+            logger::warn("ProgressionManager: Skipping record with unsupported version (got {}, expected {}, 2, or 1)",
                 version, kSerializationVersion);
             continue;
         }
@@ -201,7 +228,16 @@ void ProgressionManager::OnGameLoaded(SKSE::SerializationInterface* a_intfc)
                         progress.progressPercent = progressPercent;
                         progress.unlocked = unlocked != 0;
                         progress.xpFromModded = std::move(moddedXP);
-                        // requiredXP will be set from tree data later
+
+                        // v3: Read requiredXP and per-source XP accumulators
+                        if (version >= 3) {
+                            a_intfc->ReadRecordData(&progress.requiredXP, sizeof(progress.requiredXP));
+                            a_intfc->ReadRecordData(&progress.xpFromAny, sizeof(progress.xpFromAny));
+                            a_intfc->ReadRecordData(&progress.xpFromSchool, sizeof(progress.xpFromSchool));
+                            a_intfc->ReadRecordData(&progress.xpFromDirect, sizeof(progress.xpFromDirect));
+                            a_intfc->ReadRecordData(&progress.xpFromSelf, sizeof(progress.xpFromSelf));
+                        }
+
                         m_spellProgress[resolvedId] = progress;
 
                         logger::info("ProgressionManager: Loaded progress {:08X} -> {:.1f}% {} ({} modded sources)",
@@ -213,6 +249,65 @@ void ProgressionManager::OnGameLoaded(SKSE::SerializationInterface* a_intfc)
                 }
 
                 logger::info("ProgressionManager: Loaded {} spell progress entries", m_spellProgress.size());
+                break;
+            }
+
+            case kTargetPrereqsRecord: {
+                if (version < 3) {
+                    logger::warn("ProgressionManager: Skipping target prerequisites record with version {}", version);
+                    break;
+                }
+
+                uint32_t numTargetPrereqs = 0;
+                if (!a_intfc->ReadRecordData(&numTargetPrereqs, sizeof(numTargetPrereqs))) {
+                    logger::error("ProgressionManager: Failed to read numTargetPrereqs");
+                    break;
+                }
+
+                for (uint32_t i = 0; i < numTargetPrereqs; ++i) {
+                    RE::FormID targetId = 0;
+                    if (!a_intfc->ReadRecordData(&targetId, sizeof(targetId))) {
+                        logger::error("ProgressionManager: Failed to read targetId at target prereq entry {}", i);
+                        break;
+                    }
+
+                    uint32_t prereqCount = 0;
+                    if (!a_intfc->ReadRecordData(&prereqCount, sizeof(prereqCount))) {
+                        logger::error("ProgressionManager: Failed to read prereqCount at target prereq entry {}", i);
+                        break;
+                    }
+                    if (prereqCount > 4096) {
+                        logger::error("ProgressionManager: prereqCount {} exceeds limit at target prereq entry {}", prereqCount, i);
+                        break;
+                    }
+
+                    std::vector<RE::FormID> prereqs;
+                    prereqs.reserve(prereqCount);
+                    for (uint32_t p = 0; p < prereqCount; ++p) {
+                        RE::FormID prereqId = 0;
+                        if (!a_intfc->ReadRecordData(&prereqId, sizeof(prereqId))) {
+                            logger::error("ProgressionManager: Failed to read prereqId at target prereq entry {}, prereq {}", i, p);
+                            break;
+                        }
+                        RE::FormID resolvedPrereqId = 0;
+                        if (a_intfc->ResolveFormID(prereqId, resolvedPrereqId)) {
+                            prereqs.push_back(resolvedPrereqId);
+                        } else {
+                            logger::warn("ProgressionManager: Failed to resolve prerequisite formId {:08X} for target prereq entry {}", prereqId, i);
+                        }
+                    }
+
+                    RE::FormID resolvedTargetId = 0;
+                    if (a_intfc->ResolveFormID(targetId, resolvedTargetId)) {
+                        m_targetPrerequisites[resolvedTargetId] = std::move(prereqs);
+                        logger::info("ProgressionManager: Loaded {} target prerequisites for {:08X}",
+                            m_targetPrerequisites[resolvedTargetId].size(), resolvedTargetId);
+                    } else {
+                        logger::warn("ProgressionManager: Failed to resolve target formId {:08X} for prerequisites", targetId);
+                    }
+                }
+
+                logger::info("ProgressionManager: Loaded {} target prerequisite entries", m_targetPrerequisites.size());
                 break;
             }
 
