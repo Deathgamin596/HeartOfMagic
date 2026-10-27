@@ -674,12 +674,31 @@ function initializeSettings() {
             }
 
             var rootFormIds = [];
+            var seenRoots = {};
             for (var schoolName in state.treeData.schools) {
                 var schoolData = state.treeData.schools[schoolName];
-                if (schoolData.root && schoolData.root.formId) {
-                    rootFormIds.push(schoolData.root.formId);
-                } else if (schoolData.root && typeof schoolData.root === 'string') {
-                    rootFormIds.push(schoolData.root);
+                if (!schoolData) continue;
+
+                // Primary school root (a formId string in all tree shapes).
+                if (schoolData.root && typeof schoolData.root === 'string') {
+                    if (!seenRoots[schoolData.root]) {
+                        rootFormIds.push(schoolData.root);
+                        seenRoots[schoolData.root] = true;
+                    }
+                }
+
+                // Multi-root trees: nodes flagged isRoot inside the school are
+                // independent entry points too. Without this, "Unlock All Roots"
+                // only unlocks the primary root and leaves element roots locked.
+                var schoolNodes = schoolData.nodes || [];
+                for (var n = 0; n < schoolNodes.length; n++) {
+                    var nd = schoolNodes[n];
+                    if (!nd || !nd.isRoot) continue;
+                    var rootId = nd.formId || nd.id;
+                    if (rootId && !seenRoots[rootId]) {
+                        rootFormIds.push(rootId);
+                        seenRoots[rootId] = true;
+                    }
                 }
             }
 

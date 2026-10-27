@@ -36,6 +36,9 @@ var CanvasRenderer = {
     panStartY: 0,
     selectedNode: null,
     hoveredNode: null,
+    _panPending: false,       // ALT+click recorded but panning starts on mousemove
+    _panPendingX: 0,
+    _panPendingY: 0,
     
     // Spatial index for hit detection
     _nodeGrid: null,
@@ -383,15 +386,10 @@ var CanvasRenderer = {
             self.onWheel(e);
         }, { passive: false });
 
-        // Stop panning if ALT is released mid-pan
-        window.addEventListener('keyup', function(e) {
-            if (e.key === 'Alt' && self.isPanning) {
-                self.isPanning = false;
-                self.canvas.style.cursor = self.hoveredNode ? 'pointer' : 'grab';
-                self._needsRender = true;
-            }
-        });
-        
+        // NOTE: No ALT-release keyup handler here. Panning is driven by the mouse
+        // (mousedown+ALT -> mousemove -> mouseup), not by key state, so releasing
+        // ALT mid-drag must NOT stop panning — only mouseup does.
+
         this.canvas.addEventListener('click', function(e) {
             self.onClick(e);
         });
@@ -769,32 +767,42 @@ var CanvasRenderer = {
     // =========================================================================
     
     onMouseDown: function(e) {
-        // Require ALT key for panning
+        // ALT+click is the pan gesture. We do NOT start panning here because the
+        // browser stops reporting modifier state in mouse events once a
+        // mousedown "grabs" the canvas — so starting on mousedown causes
+        // subsequent mousemove events to arrive with e.altKey === false and
+        // panning to die immediately, forcing the user to also hold CTRL.
+        // Instead, record the ALT+click intent and start panning on the first
+        // mousemove, which still carries the ALT modifier reliably.
         if ((e.button === 0 || e.button === 2) && e.altKey) {
-            this.isPanning = true;
-            this.panStartX = e.clientX - this.panX;
-            this.panStartY = e.clientY - this.panY;
+            this._panPending = true;
+            this._panPendingX = e.clientX;
+            this._panPendingY = e.clientY;
             this.canvas.style.cursor = 'grabbing';
-            this._needsRender = true;
         } else if (e.button === 0 || e.button === 2) {
             // Normal click without ALT - don't pan, allow node selection
             this.canvas.style.cursor = 'grab';
         }
     },
     
-    onMouseMove: function(e) {
+onMouseMove: function(e) {
         var self = this;
+
+        // Start panning from a pending ALT+mousedown. Panning is started here
+        // (not in onMouseDown) because the browser stops reporting modifier state
+        // in mouse events once the canvas grabs input — starting on mousemove keeps
+        // the ALT modifier reliably reported for the duration of the drag.
+        if (this._panPending && !this.isPanning) {
+            this._panPending = false;
+            this.isPanning = true;
+            this.panStartX = e.clientX - this.panX;
+            this.panStartY = e.clientY - this.panY;
+        }
+
         if (this.isPanning) {
-            // Stop panning if ALT is released
-            if (!e.altKey) {
-                this.isPanning = false;
-                this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
-                this._needsRender = true;
-                return;
-            }
             // Batch pan updates using RAF to prevent multiple renders per frame
             this._pendingPanX = e.clientX - this.panStartX;
-            this._pendingPanY = e.clientY - this.panStartY;
+            this._pendingPanY = e.clientY - this.panY;
 
             if (!this._panRafPending) {
                 this._panRafPending = true;
@@ -826,6 +834,7 @@ var CanvasRenderer = {
     
     onMouseUp: function(e) {
         this.isPanning = false;
+        this._panPending = false;
         this.canvas.style.cursor = this.hoveredNode ? 'pointer' : 'grab';
         this._needsRender = true;
     },
@@ -2575,30 +2584,39 @@ var CanvasRenderer = {
     // PUBLIC API
     // =========================================================================
     
-    show: function() {
+show: function() {
         if (!this.canvas || !this.container) {
             console.error('[CanvasRenderer] Cannot show - not initialized');
             return;
         }
-        
+
         var svg = document.getElementById('tree-svg');
         if (svg) svg.style.display = 'none';
-        
+
         if (!this.canvas.parentNode) {
             this.container.appendChild(this.canvas);
         }
-        
+
         // Update canvas size immediately
         this.updateCanvasSize();
-        this.startRenderLoop();
+
+        // FPS FIX: The panel is created hidden and onPrismaReady auto-loads the
+        // saved tree, which calls show() before the user ever opens the menu.
+        // Starting the render loop then would run a continuous RAF loop while the
+        // panel is invisible, draining CPU and tanking FPS until the user opens
+        // then closes the menu (which calls onPanelHiding and stops the loop).
+        // Only start the loop while the panel is actually visible.
+        if (window._panelVisible) {
+            this.startRenderLoop();
+        }
         this.forceRender();
-        
+
         // Also update after a brief delay to catch layout changes
         var self = this;
         setTimeout(function() {
             self.updateCanvasSize();
         }, 100);
-        
+
         console.log('[CanvasRenderer] Shown with', this.nodes.length, 'nodes');
     },
     

@@ -49,6 +49,7 @@
     --node-learning-bg: rgba(120, 144, 168, 0.2);
     --node-learning-border: var(--learning-color);
     --node-learning-glow: rgba(120, 144, 168, 0.5);
+    --node-unlocked-glow: rgba(184, 168, 120, 0.4);
     
     /* Font size multiplier - applied via JS */
     --font-size-multiplier: 1;
@@ -1284,6 +1285,7 @@ body {
 /* UNLOCKED - School-specific shape with bright fill */
 .spell-node.unlocked .node-bg {
     stroke-width: 2;
+    filter: drop-shadow(0 0 5px var(--node-unlocked-glow));
 }
 
 .spell-node.unlocked .unlocked-shape {

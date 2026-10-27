@@ -1320,8 +1320,13 @@ window.onPrismaReady = function() {
     }
 };
 
-// Track panel visibility state
-window._panelVisible = true;
+// Track panel visibility state.
+// The panel is created HIDDEN (UIManager::Initialize calls m_prismaUI->Hide(m_view)),
+// but onPrismaReady auto-loads the saved tree, which would otherwise start the
+// CanvasRenderer render loop while the panel is invisible — draining CPU and
+// tanking FPS until the user opens then closes the menu. Default to false so
+// render loops only run while the panel is actually visible.
+window._panelVisible = false;
 
 // Called when panel becomes visible (from C++)
 window.onPanelShowing = function() {
