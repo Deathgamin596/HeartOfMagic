@@ -240,6 +240,53 @@ function initializeSettings() {
             updateDeveloperModeVisibility(settings.developerMode);
         });
     }
+
+    // Secret keyboard shortcut to toggle Developer Mode (Ctrl+Shift+D)
+    // Hidden from normal settings UI so casual users won't stumble on dev options
+    var _devKeySeq = [];
+    var _devCombo = ['Control', 'Shift', 'D'];
+    document.addEventListener('keydown', function(e) {
+        // Ignore if any input is focused
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable)) return;
+
+        var key = e.key;
+        if (_devCombo.indexOf(key) !== -1 && _devKeySeq.indexOf(key) === -1) {
+            _devKeySeq.push(key);
+        }
+        if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+            if (_devKeySeq.indexOf('Control') === -1) _devKeySeq.push('Control');
+        }
+        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+            if (_devKeySeq.indexOf('Shift') === -1) _devKeySeq.push('Shift');
+        }
+
+        var allPressed = _devCombo.every(function(k) { return _devKeySeq.indexOf(k) !== -1; });
+        if (allPressed && _devKeySeq.length === _devCombo.length) {
+            e.preventDefault();
+            var newVal = !!(settings.developerMode);
+            newVal = !newVal;
+            settings.developerMode = newVal;
+            if (devModeToggle) devModeToggle.checked = newVal;
+            updateDeveloperModeVisibility(newVal);
+            if (typeof updateStatus === 'function') {
+                updateStatus(newVal ? 'Developer mode ON' : 'Developer mode OFF');
+            }
+            console.log('[SpellLearning] Developer mode (secret key):', newVal);
+            _devKeySeq = [];
+        }
+    });
+    document.addEventListener('keyup', function(e) {
+        var key = e.key;
+        if (_devCombo.indexOf(key) !== -1) {
+            _devKeySeq = _devKeySeq.filter(function(k) { return k !== key; });
+        }
+        if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+            _devKeySeq = _devKeySeq.filter(function(k) { return k !== 'Control'; });
+        }
+        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+            _devKeySeq = _devKeySeq.filter(function(k) { return k !== 'Shift'; });
+        }
+    });
     
     // Cheat mode toggle - includes all debug features
     var cheatToggle = document.getElementById('cheatModeToggle');
@@ -495,8 +542,11 @@ function initializeSettings() {
     if (!settings.notifications) {
         settings.notifications = {
             weakenedSpellNotifications: true,
-            weakenedSpellInterval: 10
+            weakenedSpellInterval: 10,
+            autoAdvanceTargetMastered: true
         };
+    } else if (settings.notifications.autoAdvanceTargetMastered === undefined) {
+        settings.notifications.autoAdvanceTargetMastered = true;
     }
     
     // Weakened spell notifications toggle
@@ -983,6 +1033,138 @@ function initializeSettings() {
     });
     setSegmentedToggleEnabled('autoAdvanceModeToggle', settings.autoAdvanceLearning);
 
+    // =========================================================================
+    // AUTO-ADVANCE TARGET (work bottom-up toward a chosen destination spell)
+    // =========================================================================
+
+    var autoAdvanceSchoolSelect = document.getElementById('autoAdvanceSchoolSelect');
+    var autoAdvanceTargetSelect = document.getElementById('autoAdvanceTargetSelect');
+    var setAutoAdvanceTargetBtn = document.getElementById('setAutoAdvanceTargetBtn');
+    var clearAutoAdvanceTargetBtn = document.getElementById('clearAutoAdvanceTargetBtn');
+
+    /**
+     * Populate the school + target spell selectors from the loaded tree data,
+     * and reflect the currently-set target.
+     */
+    window.refreshAutoAdvanceTargetUI = function() {
+        if (!autoAdvanceSchoolSelect || !autoAdvanceTargetSelect) return;
+
+        var schools = [];
+        if (state.treeData && state.treeData.schools) {
+            schools = Object.keys(state.treeData.schools);
+        }
+        if (schools.length === 0 && settings.schoolColors) {
+            schools = Object.keys(settings.schoolColors);
+        }
+
+        var curSchool = autoAdvanceSchoolSelect.value;
+        autoAdvanceSchoolSelect.innerHTML = '';
+        schools.forEach(function(s) {
+            var opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            autoAdvanceSchoolSelect.appendChild(opt);
+        });
+        if (curSchool && schools.indexOf(curSchool) !== -1) {
+            autoAdvanceSchoolSelect.value = curSchool;
+        } else if (schools.length > 0) {
+            autoAdvanceSchoolSelect.value = schools[0];
+        }
+
+        if (schools.length === 0) {
+            autoAdvanceTargetSelect.disabled = true;
+            autoAdvanceTargetSelect.innerHTML = '<option>No tree loaded</option>';
+            if (setAutoAdvanceTargetBtn) setAutoAdvanceTargetBtn.disabled = true;
+            if (clearAutoAdvanceTargetBtn) clearAutoAdvanceTargetBtn.disabled = true;
+            var curEl = document.getElementById('autoAdvanceCurrentTarget');
+            if (curEl) curEl.textContent = 'None set';
+            return;
+        }
+        autoAdvanceTargetSelect.disabled = false;
+        if (setAutoAdvanceTargetBtn) setAutoAdvanceTargetBtn.disabled = false;
+        if (clearAutoAdvanceTargetBtn) clearAutoAdvanceTargetBtn.disabled = false;
+
+        _populateAutoAdvanceTargetSelect(autoAdvanceSchoolSelect.value);
+        _showAutoAdvanceCurrentTarget(autoAdvanceSchoolSelect.value);
+    };
+
+    function _populateAutoAdvanceTargetSelect(school) {
+        if (!autoAdvanceTargetSelect) return;
+        autoAdvanceTargetSelect.innerHTML = '';
+        if (!state.treeData || !state.treeData.nodes) {
+            autoAdvanceTargetSelect.innerHTML = '<option>No tree data</option>';
+            autoAdvanceTargetSelect.disabled = true;
+            return;
+        }
+        var nodes = state.treeData.nodes.filter(function(n) { return n.school === school; });
+        nodes.forEach(function(n) {
+            var opt = document.createElement('option');
+            opt.value = n.formId || n.id;
+            opt.textContent = (n.name || n.formId) + ' (' + (n.level || n.skillLevel || '?') + ')';
+            autoAdvanceTargetSelect.appendChild(opt);
+        });
+        var targetFid = settings.autoAdvanceTarget && settings.autoAdvanceTarget[school];
+        if (targetFid) {
+            for (var i = 0; i < autoAdvanceTargetSelect.options.length; i++) {
+                if (autoAdvanceTargetSelect.options[i].value === targetFid) {
+                    autoAdvanceTargetSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    function _showAutoAdvanceCurrentTarget(school) {
+        var curEl = document.getElementById('autoAdvanceCurrentTarget');
+        if (!curEl) return;
+        var targetFid = settings.autoAdvanceTarget && settings.autoAdvanceTarget[school];
+        if (!targetFid) {
+            curEl.textContent = 'None set';
+            return;
+        }
+        var node = state.treeData && state.treeData.nodes ? state.treeData.nodes.find(function(n) {
+            return n.formId === targetFid || n.id === targetFid;
+        }) : null;
+        curEl.textContent = 'Target: ' + (node ? (node.name || node.formId) : targetFid);
+    }
+
+    // Wire up controls
+    if (autoAdvanceSchoolSelect) {
+        autoAdvanceSchoolSelect.addEventListener('change', function() {
+            _populateAutoAdvanceTargetSelect(this.value);
+            _showAutoAdvanceCurrentTarget(this.value);
+        });
+    }
+    if (setAutoAdvanceTargetBtn) {
+        setAutoAdvanceTargetBtn.addEventListener('click', function() {
+            var school = autoAdvanceSchoolSelect ? autoAdvanceSchoolSelect.value : '';
+            var targetFid = autoAdvanceTargetSelect ? autoAdvanceTargetSelect.value : '';
+            if (!school || !targetFid) return;
+            if (!settings.autoAdvanceTarget) settings.autoAdvanceTarget = {};
+            settings.autoAdvanceTarget[school] = targetFid;
+            autoSaveSettings();
+            refreshAutoAdvanceTargetUI();
+            if (typeof setTreeStatus === 'function') {
+                setTreeStatus('Auto-advance target set for ' + school);
+            }
+        });
+    }
+    if (clearAutoAdvanceTargetBtn) {
+        clearAutoAdvanceTargetBtn.addEventListener('click', function() {
+            var school = autoAdvanceSchoolSelect ? autoAdvanceSchoolSelect.value : '';
+            if (!school) return;
+            if (settings.autoAdvanceTarget) delete settings.autoAdvanceTarget[school];
+            autoSaveSettings();
+            refreshAutoAdvanceTargetUI();
+            if (typeof setTreeStatus === 'function') {
+                setTreeStatus('Auto-advance target cleared for ' + school);
+            }
+        });
+    }
+
+    // Initial population (may be empty until a tree is loaded; refreshed on load)
+    refreshAutoAdvanceTargetUI();
+
     // Progression settings - XP Multiplier Sliders
     function updateSliderFill(slider) {
         var percent = (slider.value - slider.min) / (slider.max - slider.min) * 100;
@@ -1284,6 +1466,7 @@ function saveUnifiedConfig() {
         learningMode: settings.learningMode,
         autoAdvanceLearning: settings.autoAdvanceLearning,
         autoAdvanceMode: settings.autoAdvanceMode,
+        autoAdvanceTarget: settings.autoAdvanceTarget,
         xpGlobalMultiplier: settings.xpGlobalMultiplier,
         xpMultiplierDirect: settings.xpMultiplierDirect,
         xpMultiplierSchool: settings.xpMultiplierSchool,
@@ -1361,6 +1544,9 @@ function saveUnifiedConfig() {
         // Spell tome learning
         spellTomeLearning: settings.spellTomeLearning,
         
+        // Notifications
+        notifications: settings.notifications,
+        
         // Heart animation settings
         heartAnimationEnabled: settings.heartAnimationEnabled,
         heartPulseSpeed: settings.heartPulseSpeed,
@@ -1425,6 +1611,7 @@ function resetSettings() {
     settings.learningMode = 'perSchool';
     settings.autoAdvanceLearning = true;
     settings.autoAdvanceMode = 'branch';
+    settings.autoAdvanceTarget = {};
     settings.xpGlobalMultiplier = 1;
     settings.xpMultiplierDirect = 100;
     settings.xpMultiplierSchool = 50;
@@ -1592,6 +1779,7 @@ window.onUnifiedConfigLoaded = function(dataStr) {
         settings.learningMode = data.learningMode || 'perSchool';
         settings.autoAdvanceLearning = data.autoAdvanceLearning !== false;  // default true
         settings.autoAdvanceMode = data.autoAdvanceMode || 'branch';
+        settings.autoAdvanceTarget = data.autoAdvanceTarget && typeof data.autoAdvanceTarget === 'object' ? data.autoAdvanceTarget : {};
         settings.xpGlobalMultiplier = data.xpGlobalMultiplier !== undefined ? data.xpGlobalMultiplier : 1;
         settings.xpMultiplierDirect = data.xpMultiplierDirect !== undefined ? data.xpMultiplierDirect : 100;
         settings.xpMultiplierSchool = data.xpMultiplierSchool !== undefined ? data.xpMultiplierSchool : 50;
@@ -1957,6 +2145,7 @@ window.onUnifiedConfigLoaded = function(dataStr) {
             }
             settings.notifications.weakenedSpellNotifications = notif.weakenedSpellNotifications !== undefined ? notif.weakenedSpellNotifications : true;
             settings.notifications.weakenedSpellInterval = notif.weakenedSpellInterval !== undefined ? notif.weakenedSpellInterval : 10;
+            settings.notifications.autoAdvanceTargetMastered = notif.autoAdvanceTargetMastered !== undefined ? notif.autoAdvanceTargetMastered : true;
         }
         updateNotificationsUI();
         

@@ -90,6 +90,7 @@ var settings = {
     learningMode: 'perSchool',  // 'perSchool' or 'single'
     autoAdvanceLearning: true,  // Auto-select next spell when one is mastered
     autoAdvanceMode: 'branch',  // 'branch' = next in tree, 'random' = any available in school
+    autoAdvanceTarget: {},      // school -> target formId; auto-advance works bottom-up toward this node
     xpGlobalMultiplier: 1,
     // XP multipliers (how much XP per cast)
     xpMultiplierDirect: 100,
@@ -179,7 +180,8 @@ var settings = {
     // In-game notification settings
     notifications: {
         weakenedSpellNotifications: true, // Show "X operating at Y% power" when casting weakened spells
-        weakenedSpellInterval: 10         // Seconds between notifications (default 10)
+        weakenedSpellInterval: 10,        // Seconds between notifications (default 10)
+        autoAdvanceTargetMastered: true   // Notify when the auto-advance target spell is mastered
     },
     // Passive learning settings
     passiveLearning: {

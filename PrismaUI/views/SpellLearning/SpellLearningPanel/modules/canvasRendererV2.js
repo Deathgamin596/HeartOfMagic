@@ -2339,7 +2339,8 @@ onMouseMove: function(e) {
      * Render labels - SCREEN ALIGNED (don't rotate with wheel)
      */
     renderLabels: function(ctx, cx, cy, cos, sin) {
-        if (this.zoom < 0.6) return;  // Show labels at lower zoom too
+        var isEditActive = typeof EditMode !== 'undefined' && EditMode.isActive;
+        if (!isEditActive && this.zoom < 0.6) return;  // Show labels at lower zoom too
         if (settings.showNodeNames === false) return;
 
         var fontSize = settings.nodeFontSize || 10;
@@ -2354,7 +2355,6 @@ onMouseMove: function(e) {
             var node = this.nodes[i];
             
             // In edit mode: show ALL labels. Otherwise: only unlocked/learning/available
-            var isEditActive = typeof EditMode !== 'undefined' && EditMode.isActive;
             if (!isEditActive && node.state !== 'unlocked' && node.state !== 'learning' && node.state !== 'available') continue;
             if (!node.name && !isEditActive) continue;
             if (settings.schoolVisibility && settings.schoolVisibility[node.school] === false) continue;

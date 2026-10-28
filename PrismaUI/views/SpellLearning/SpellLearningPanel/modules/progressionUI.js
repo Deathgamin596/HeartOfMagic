@@ -640,7 +640,56 @@ function autoAdvanceLearningTarget(masteredCanonId, school) {
             return nc === masteredCanonId;
         });
 
-        if (masteredNode && masteredNode.children && masteredNode.children.length > 0) {
+        if (!masteredNode) {
+            console.log('[SpellLearning] Auto-advance: mastered node not found in tree');
+            return;
+        }
+
+        // If an auto-advance target is set for this school, walk the tree
+        // bottom-up toward it: pick the child of the mastered node that lies
+        // on the path from mastered node down to the target.
+        var targetFormId = settings.autoAdvanceTarget && settings.autoAdvanceTarget[school];
+        if (targetFormId) {
+            // Target already reached - stop auto-advancing
+            if (masteredNode.formId === targetFormId || masteredNode.id === targetFormId) {
+                console.log('[SpellLearning] Auto-advance: target reached (' + targetFormId + '), stopping');
+                if (settings.autoAdvanceLearning &&
+                    settings.notifications && settings.notifications.autoAdvanceTargetMastered !== false &&
+                    typeof updateStatus === 'function') {
+                    updateStatus('Auto-advance target mastered: ' + (masteredNode.name || masteredNode.formId));
+                }
+                return;
+            }
+
+            // Path from target up to root via prerequisites (array of formIds)
+            var pathToRoot = _getPrereqPathToRoot(targetFormId);
+            var pathSet = new Set(pathToRoot);
+
+            // The next step toward the target is the child of masteredNode
+            // that is also on the path to the target.
+            var targetPathChild = null;
+            if (masteredNode.children && masteredNode.children.length > 0) {
+                for (var ci = 0; ci < masteredNode.children.length; ci++) {
+                    var childId = masteredNode.children[ci];
+                    if (pathSet.has(childId)) {
+                        targetPathChild = state.treeData.nodes.find(function(n) {
+                            return n.formId === childId || n.id === childId;
+                        });
+                        break;
+                    }
+                }
+            }
+
+            if (targetPathChild && targetPathChild.state === 'available') {
+                candidate = targetPathChild;
+                console.log('[SpellLearning] Auto-advance (target): picked path child ' + (candidate.name || candidate.formId) + ' toward target ' + targetFormId);
+            } else {
+                // Target not reachable from this node via children; fall back to normal branch logic
+                console.log('[SpellLearning] Auto-advance (target): target not reachable from mastered node, falling back to branch');
+            }
+        }
+
+        if (!candidate && masteredNode.children && masteredNode.children.length > 0) {
             // Get child nodes that are 'available' (prereqs met, not learning/unlocked)
             var availableChildren = [];
             masteredNode.children.forEach(function(childId) {
@@ -756,6 +805,33 @@ function autoAdvanceLearningTarget(masteredCanonId, school) {
     if (typeof SmartRenderer !== 'undefined' && SmartRenderer.refresh) {
         SmartRenderer.refresh();
     }
+}
+
+/**
+ * Helper: collect the target node and all of its ancestors (following
+ * prerequisites upward) so we can test whether a node lies on the path
+ * to the target. Returns an array of formIds from target up to root.
+ */
+function _getPrereqPathToRoot(targetFormId) {
+    if (!state.treeData || !state.treeData.nodes) return [];
+    var ancestors = [];
+    var visited = new Set();
+    var stack = [targetFormId];
+    while (stack.length > 0) {
+        var fid = stack.pop();
+        if (visited.has(fid)) continue;
+        visited.add(fid);
+        var node = state.treeData.nodes.find(function(n) {
+            return n.formId === fid || n.id === fid;
+        });
+        if (!node) continue;
+        ancestors.push(node.formId || node.id);
+        var prereqs = node.prerequisites || [];
+        for (var i = 0; i < prereqs.length; i++) {
+            if (!visited.has(prereqs[i])) stack.push(prereqs[i]);
+        }
+    }
+    return ancestors;
 }
 
 /**

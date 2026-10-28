@@ -810,6 +810,7 @@
                     <div class="details-footer">
                         <span id="spell-state" class="state-badge locked" data-i18n="details.stateLocked">Locked</span>
                         <button id="learn-btn" class="btn btn-learn hidden" data-i18n="details.learnThis">Learn This</button>
+                        <button id="autoAdvanceTargetBtn" class="btn btn-auto-target hidden">Set as Auto-Advance Target</button>
                         <button id="unlock-btn" class="btn btn-unlock hidden" disabled data-i18n="details.unlockSpell">Unlock Spell</button>
                     </div>
                 </div>
@@ -1023,6 +1024,21 @@
                                     <div class="seg-btn active" data-value="branch">Branch</div>
                                     <div class="seg-btn" data-value="random">Random</div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Auto-Advance Target Spell (work bottom-up toward this node) -->
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <span class="setting-label">Auto-Advance Target</span>
+                                <span class="setting-desc">Pick a destination spell; auto-advance walks the tree from the current node up to it</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <select id="autoAdvanceSchoolSelect" class="setting-select" style="min-width:140px;"></select>
+                                <select id="autoAdvanceTargetSelect" class="setting-select" style="min-width:180px;" disabled></select>
+                                <button id="setAutoAdvanceTargetBtn" class="action-btn" style="padding:4px 10px;font-size:0.85em;">Set Target</button>
+                                <button id="clearAutoAdvanceTargetBtn" class="action-btn" style="padding:4px 10px;font-size:0.85em;">Clear</button>
+                                <span id="autoAdvanceCurrentTarget" style="font-size:0.8em;color:var(--text-muted);">None set</span>
                             </div>
                         </div>
 
@@ -1468,8 +1484,8 @@
                         <span class="cheat-warning" data-i18n="settings.devDebug.advancedOptions">Advanced options</span>
                     </div>
                     <div class="settings-block-content">
-                        <!-- Developer Mode -->
-                        <div class="setting-row">
+                        <!-- Developer Mode (hidden from normal settings; toggle via Ctrl+Shift+D) -->
+                        <div class="setting-row hidden">
                             <div class="setting-info">
                                 <span class="setting-label" data-i18n="settings.devDebug.developerMode">Developer Mode</span>
                                 <span class="setting-desc" data-i18n="settings.devDebug.developerModeDesc">Show advanced generation options</span>

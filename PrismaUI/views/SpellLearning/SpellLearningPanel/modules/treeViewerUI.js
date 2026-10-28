@@ -334,6 +334,12 @@ function initializeTreeViewer() {
     // Learn button - set learning target
     var learnBtn = document.getElementById('learn-btn');
     if (learnBtn) learnBtn.addEventListener('click', onLearnClick);
+
+    // Auto-Advance Target button - set current detailed node as destination
+    var autoAdvanceTargetBtn = document.getElementById('autoAdvanceTargetBtn');
+    if (autoAdvanceTargetBtn) {
+        autoAdvanceTargetBtn.addEventListener('click', onSetAutoAdvanceTargetClick);
+    }
     
     // Unlock button - unlock spell when XP is ready
     var unlockBtn = document.getElementById('unlock-btn');
@@ -1007,6 +1013,11 @@ function loadTreeData(jsonData, switchToTreeTab, isManualImport) {
         : { x: 0, y: 0, radius: 45 };
     state.treeData = result;
     
+    // Refresh the auto-advance target UI now that tree data is available
+    if (typeof window.refreshAutoAdvanceTargetUI === 'function') {
+        window.refreshAutoAdvanceTargetUI();
+    }
+    
     // AGGRESSIVE PATH VALIDATION for manual imports
     // Runs path check (no AI self-correction, no procedural injection)
     if (isManualImport && settings.aggressivePathValidation) {
@@ -1197,7 +1208,42 @@ function loadTreeData(jsonData, switchToTreeTab, isManualImport) {
     }
 }
 
+// Track the node currently shown in the details panel so the
+// auto-advance target button knows which spell to target.
+var _autoAdvanceTargetDetailNode = null;
+
+/**
+ * Set or clear the auto-advance target for the currently detailed node's school.
+ * Clicking a node in the tree already opens its details panel; this button lets
+ * the user pick that spell as the auto-advance destination to work bottom-up toward.
+ */
+function onSetAutoAdvanceTargetClick() {
+    var node = _autoAdvanceTargetDetailNode;
+    if (!node || !settings.autoAdvanceLearning) return;
+    if (!settings.autoAdvanceTarget) settings.autoAdvanceTarget = {};
+
+    var school = node.school;
+    var formId = node.formId;
+    var current = settings.autoAdvanceTarget[school];
+
+    if (current === formId) {
+        // Already targeted - clear it
+        delete settings.autoAdvanceTarget[school];
+        autoSaveSettings();
+        refreshAutoAdvanceTargetUI();
+        setTreeStatus('Auto-advance target cleared for ' + school);
+        console.log('[SpellLearning] Auto-advance target cleared: ' + formId);
+    } else {
+        settings.autoAdvanceTarget[school] = formId;
+        autoSaveSettings();
+        refreshAutoAdvanceTargetUI();
+        setTreeStatus('Auto-advance target set: ' + (node.name || formId) + ' (' + school + ')');
+        console.log('[SpellLearning] Auto-advance target set: ' + formId + ' for ' + school);
+    }
+}
+
 function showSpellDetails(node) {
+    _autoAdvanceTargetDetailNode = node;
     var panel = document.getElementById('details-panel');
     if (!panel) return;
     panel.classList.remove('hidden');
@@ -1602,6 +1648,7 @@ function updateDetailsProgression(node) {
     var progressSection = document.getElementById('progress-section');
     var learnBtn = document.getElementById('learn-btn');
     var unlockBtn = document.getElementById('unlock-btn');
+    var autoAdvanceTargetBtn = document.getElementById('autoAdvanceTargetBtn');
     var progressBar = document.getElementById('progress-bar');
     var progressText = document.getElementById('progress-text');
     var progressEdit = document.getElementById('progress-edit');
@@ -1615,6 +1662,9 @@ function updateDetailsProgression(node) {
     var tierXP = getXPForTier(node.level);
     var requiredXP = progress.required;
     var isLearningTarget = state.learningTargets[node.school] === canonId || state.learningTargets[node.school] === node.formId;
+
+    // Auto-advance target state for this node's school
+    var isAutoAdvanceTarget = settings.autoAdvanceTarget && settings.autoAdvanceTarget[node.school] === node.formId;
 
     // Debug: log learning target check to file via C++
     var debugMsg = '[SELECT] ' + (node.name || node.formId) +
@@ -1635,6 +1685,7 @@ function updateDetailsProgression(node) {
     // Hide all buttons by default
     learnBtn.classList.add('hidden');
     unlockBtn.classList.add('hidden');
+    autoAdvanceTargetBtn.classList.add('hidden');
     progressSection.classList.add('hidden');
     progressText.classList.remove('hidden');
     if (progressEdit) progressEdit.classList.add('hidden');
@@ -1719,6 +1770,14 @@ function updateDetailsProgression(node) {
                     learnBtn.textContent = 'Learn This';
                     learnBtn.classList.remove('active');
                 }
+
+                // Auto-advance target button (set this node as destination)
+                if (settings.autoAdvanceLearning) {
+                    autoAdvanceTargetBtn.classList.remove('hidden');
+                    autoAdvanceTargetBtn.textContent = isAutoAdvanceTarget
+                        ? 'Clearing Target'
+                        : 'Set as Auto-Advance Target';
+                }
             }
         }
         return;
@@ -1751,11 +1810,26 @@ function updateDetailsProgression(node) {
         unlockBtn.textContent = 'Unlock Spell';
         unlockBtn.style.background = '';  // Default color
         learnBtn.classList.add('hidden');
+
+        // Auto-advance target button also available for ready-to-unlock nodes
+        if (settings.autoAdvanceLearning) {
+            autoAdvanceTargetBtn.classList.remove('hidden');
+            autoAdvanceTargetBtn.textContent = isAutoAdvanceTarget
+                ? 'Clearing Target'
+                : 'Set as Auto-Advance Target';
+        }
     } else {
         // Not ready - show learn button
         progressBar.classList.remove('ready');
         learnBtn.classList.remove('hidden');
-        
+
+        if (settings.autoAdvanceLearning) {
+            autoAdvanceTargetBtn.classList.remove('hidden');
+            autoAdvanceTargetBtn.textContent = isAutoAdvanceTarget
+                ? 'Clearing Target'
+                : 'Set as Auto-Advance Target';
+        }
+
         if (isLearningTarget) {
             learnBtn.textContent = 'Learning...';
             learnBtn.classList.add('active');
