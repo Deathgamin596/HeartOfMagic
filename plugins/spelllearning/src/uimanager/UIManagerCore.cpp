@@ -9,6 +9,32 @@
 // SINGLETON
 // =============================================================================
 
+// Controller button name lookup (SKSE macro keycodes, see SKSE::InputMap).
+// Used by the controller hotkey capture polling callback to display a friendly
+// name for a captured gamepad button.
+std::string GetControllerButtonName(uint32_t code)
+{
+    switch (code) {
+        case 266: return "DPad Up";
+        case 267: return "DPad Down";
+        case 268: return "DPad Left";
+        case 269: return "DPad Right";
+        case 270: return "Start";
+        case 271: return "Back";
+        case 272: return "Left Thumb";
+        case 273: return "Right Thumb";
+        case 274: return "Left Shoulder";
+        case 275: return "Right Shoulder";
+        case 276: return "A";
+        case 277: return "B";
+        case 278: return "X";
+        case 279: return "Y";
+        case 280: return "Left Trigger";
+        case 281: return "Right Trigger";
+        default: return "Unknown(" + std::to_string(code) + ")";
+    }
+}
+
 UIManager* UIManager::GetSingleton()
 {
     static UIManager singleton;
@@ -123,6 +149,11 @@ bool UIManager::Initialize()
 
     // Register JS callbacks - Panel control
     m_prismaUI->RegisterJSListener(m_view, "HidePanel", OnHidePanel);
+
+    // Register JS callbacks - Controller hotkey capture (settings remapping)
+    m_prismaUI->RegisterJSListener(m_view, "BeginControllerCapture", OnBeginControllerCapture);
+    m_prismaUI->RegisterJSListener(m_view, "EndControllerCapture", OnEndControllerCapture);
+    m_prismaUI->RegisterJSListener(m_view, "PollControllerCapture", OnPollControllerCapture);
 
     // Register JS callbacks - Auto-test
     m_prismaUI->RegisterJSListener(m_view, "loadTestConfig", OnLoadTestConfig);
@@ -274,6 +305,68 @@ void UIManager::OnHidePanel([[maybe_unused]] const char* argument)
 {
     logger::info("UIManager: HidePanel callback triggered from JS");
     GetSingleton()->HidePanel();
+}
+
+// =============================================================================
+// CONTROLLER HOTKEY CAPTURE (settings remapping)
+// =============================================================================
+
+void UIManager::OnBeginControllerCapture(const char* argument)
+{
+    logger::info("UIManager: BeginControllerCapture callback triggered");
+
+    if (!argument || strlen(argument) == 0) {
+        logger::warn("UIManager: BeginControllerCapture - no argument provided");
+        return;
+    }
+
+    try {
+        json args = json::parse(argument);
+        bool primary = args.value("primary", true);
+        logger::info("UIManager: Beginning controller button capture for {}",
+            primary ? "primary" : "secondary");
+        BeginControllerCapture(primary);
+    } catch (const std::exception& e) {
+        logger::error("UIManager: BeginControllerCapture exception: {}", e.what());
+    }
+}
+
+void UIManager::OnEndControllerCapture([[maybe_unused]] const char* argument)
+{
+    logger::info("UIManager: EndControllerCapture callback triggered");
+    ::EndControllerCapture();
+}
+
+void UIManager::OnPollControllerCapture([[maybe_unused]] const char* argument)
+{
+    // Poll for a captured controller button code. The JS panel calls this in a
+    // loop after BeginControllerCapture until a code is returned or the panel
+    // cancels the capture.
+    auto* instance = GetSingleton();
+    if (!instance || !instance->m_prismaUI) return;
+
+    uint32_t code = ::GetCapturedCode();
+    if (code != 0) {
+        json response;
+        response["code"] = code;
+        response["name"] = GetControllerButtonName(code);
+        instance->m_prismaUI->InteropCall(instance->m_view,
+            "onControllerButtonCaptured", response.dump().c_str());
+        // Reset so the panel doesn't get the same code twice
+        EndControllerCapture();
+    }
+}
+
+void UIManager::BeginControllerCapture(bool primary)
+{
+    // Arm the InputHandler to capture the next gamepad button press. The JS
+    // panel polls via OnPollControllerCapture to read the captured code.
+    ::BeginControllerCapture(primary);
+}
+
+std::string UIManager::GetCapturedControllerCode() const
+{
+    return std::to_string(::GetCapturedCode());
 }
 
 // =============================================================================

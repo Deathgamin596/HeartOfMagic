@@ -193,6 +193,39 @@ public:
     
     uint32_t GetHotkeyCode() const { return m_hotkeyCode; }
 
+    // Controller hotkey is a two-button combo: hold PRIMARY, press SECONDARY.
+    // e.g. A (276) + DPad Up (266) => hold A, tap DPad Up.
+    void SetControllerHotkey(uint32_t primary, uint32_t secondary)
+    {
+        m_ctrlHotkeyPrimary = primary;
+        m_ctrlHotkeySecondary = secondary;
+        logger::info("InputHandler: Controller hotkey set to primary={} secondary={}",
+            primary, secondary);
+    }
+
+    // Capture mode: while active, the next gamepad button press is intercepted and
+    // stored in m_capturedCode instead of being used for toggling. This lets the
+    // settings panel remap controller buttons, which gamepad events never reach CEF.
+    // Capture is polling-based: the JS panel calls BeginControllerCapture, waits, then
+    // reads GetCapturedCode() to see what was captured.
+    void BeginCapture(bool primary)
+    {
+        m_capturePrimary = primary;
+        m_capturedCode = 0;
+        logger::info("InputHandler: Controller button capture started for {}",
+            primary ? "primary" : "secondary");
+    }
+
+    void EndCapture()
+    {
+        m_capturePrimary = false;
+        m_capturedCode = 0;
+        logger::info("InputHandler: Controller button capture ended");
+    }
+
+    uint32_t GetCapturedCode() const { return m_capturedCode; }
+    bool IsCapturing() const { return m_capturePrimary; }
+
     RE::BSEventNotifyControl ProcessEvent(
         RE::InputEvent* const* a_event,
         RE::BSTEventSource<RE::InputEvent*>*) override
@@ -210,25 +243,62 @@ public:
 
             auto* buttonEvent = static_cast<RE::ButtonEvent*>(event);
             
-            // PERFORMANCE: Check device first (cheapest check)
-            if (buttonEvent->device != RE::INPUT_DEVICE::kKeyboard) {
-                continue;
+            // ---- Keyboard hotkey ----
+            if (buttonEvent->device == RE::INPUT_DEVICE::kKeyboard) {
+                // PERFORMANCE: Check key code before IsDown (idCode is a simple member access)
+                if (buttonEvent->idCode != m_hotkeyCode) {
+                    continue;
+                }
+                
+                // Only process key down events
+                if (!buttonEvent->IsDown()) {
+                    continue;
+                }
+                
+                // Matched! Toggle the panel
+                logger::info("Hotkey {} pressed - toggling Spell Learning Panel", m_hotkeyCode);
+                UIManager::GetSingleton()->TogglePanel();
+                break;  // Only process one hotkey event per frame to prevent double-toggle
             }
             
-            // PERFORMANCE: Check key code before IsDown (idCode is a simple member access)
-            if (buttonEvent->idCode != m_hotkeyCode) {
-                continue;
-            }
-            
-            // Only process key down events
-            if (!buttonEvent->IsDown()) {
-                continue;
-            }
+            // ---- Controller hotkey (two-button combo) ----
+            if (buttonEvent->device == RE::INPUT_DEVICE::kGamepad) {
+                // Capture mode: intercept the next button press and store it for the
+                // JS panel to poll (gamepad events never reach CEF directly).
+                if (m_capturePrimary) {
+                    if (buttonEvent->IsDown() && buttonEvent->idCode != 0) {
+                        m_capturedCode = buttonEvent->idCode;
+                        logger::info("InputHandler: Captured controller button code {}", m_capturedCode);
+                        m_capturePrimary = false;
+                    }
+                    break;
+                }
 
-            // Matched! Toggle the panel
-            logger::info("Hotkey {} pressed - toggling Spell Learning Panel", m_hotkeyCode);
-            UIManager::GetSingleton()->TogglePanel();
-            break;  // Only process one hotkey event per frame to prevent double-toggle
+                if (m_ctrlHotkeyPrimary != 0 && m_ctrlHotkeySecondary != 0) {
+                    // Track whether the primary button is currently held.
+                    if (buttonEvent->idCode == m_ctrlHotkeyPrimary) {
+                        if (buttonEvent->IsDown()) {
+                            m_ctrlPrimaryHeld = true;
+                        } else if (buttonEvent->IsUp()) {
+                            // Primary released: reset the combo so it can be re-triggered
+                            m_ctrlPrimaryHeld = false;
+                            m_ctrlSecondaryArmed = false;
+                        }
+                        break;  // consumed this primary event
+                    }
+                    
+                    // Secondary button: only fire when primary is held AND this is a fresh press
+                    if (buttonEvent->idCode == m_ctrlHotkeySecondary) {
+                        if (buttonEvent->IsDown() && m_ctrlPrimaryHeld && !m_ctrlSecondaryArmed) {
+                            m_ctrlSecondaryArmed = true;
+                            logger::info("Controller combo {}+{} pressed - toggling Spell Learning Panel",
+                                m_ctrlHotkeyPrimary, m_ctrlHotkeySecondary);
+                            UIManager::GetSingleton()->TogglePanel();
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         return RE::BSEventNotifyControl::kContinue;
@@ -241,12 +311,48 @@ private:
     InputHandler& operator=(const InputHandler&) = delete;
     
     uint32_t m_hotkeyCode;
+    
+    // Controller hotkey combo state
+    uint32_t m_ctrlHotkeyPrimary = 0;     // held button (e.g. A)
+    uint32_t m_ctrlHotkeySecondary = 0;   // pressed button (e.g. DPad Up)
+    bool m_ctrlPrimaryHeld = false;       // primary currently held
+    bool m_ctrlSecondaryArmed = false;    // secondary already fired, wait for release
+
+    // Button capture mode (settings remapping). While active the next gamepad
+    // button press is intercepted and stored in m_capturedCode instead of being
+    // used for toggling. Capture is polling-based: the JS panel calls
+    // BeginControllerCapture, waits, then reads GetCapturedCode() to see what was
+    // captured.
+    bool m_capturePrimary = false;
+    uint32_t m_capturedCode = 0;
 };
 
 // Global function to update hotkey (called from UIManager)
 void UpdateInputHandlerHotkey(uint32_t keyCode)
 {
     InputHandler::GetSingleton()->SetHotkeyCode(keyCode);
+}
+
+// Global function to update controller hotkey combo (called from UIManager)
+void UpdateControllerHotkey(uint32_t primary, uint32_t secondary)
+{
+    InputHandler::GetSingleton()->SetControllerHotkey(primary, secondary);
+}
+
+// Capture the next gamepad button press (called from UIManager)
+void BeginControllerCapture(bool primary)
+{
+    InputHandler::GetSingleton()->BeginCapture(primary);
+}
+
+void EndControllerCapture()
+{
+    InputHandler::GetSingleton()->EndCapture();
+}
+
+uint32_t GetCapturedCode()
+{
+    return InputHandler::GetSingleton()->GetCapturedCode();
 }
 
 // =============================================================================

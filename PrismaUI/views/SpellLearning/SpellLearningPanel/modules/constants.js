@@ -123,3 +123,40 @@ var KEY_CODES = {
     'A': 30, 'S': 31, 'D': 32, 'F': 33, 'G': 34, 'H': 35, 'J': 36, 'K': 37, 'L': 38,
     'Z': 44, 'X': 45, 'C': 46, 'V': 47, 'B': 48, 'N': 49, 'M': 50
 };
+
+// =============================================================================
+// CONTROLLER BUTTON CODES (SKSE normalized macro keycodes)
+//
+// Skyrim's ButtonEvent for kGamepad devices carries an idCode in the SKSE
+// macro keycode space (kMacro_GamepadOffset = 266 + button index), NOT the
+// raw XInput mask. See SKSE::InputMap::GamepadMaskToKeycode().
+//
+// The panel toggle is a two-button combo: hold PRIMARY, press SECONDARY.
+// Default: hold A (276), tap DPad Up (266).
+// =============================================================================
+var CONTROLLER_BUTTON_CODES = {
+    'DPad Up': 266,
+    'DPad Down': 267,
+    'DPad Left': 268,
+    'DPad Right': 269,
+    'Start': 270,
+    'Back': 271,
+    'Left Thumb': 272,
+    'Right Thumb': 273,
+    'Left Shoulder': 274,
+    'Right Shoulder': 275,
+    'A': 276,
+    'B': 277,
+    'X': 278,
+    'Y': 279,
+    'Left Trigger': 280,
+    'Right Trigger': 281
+};
+
+// Reverse lookup: code -> display name
+var CONTROLLER_BUTTON_NAMES = {};
+for (var btnName in CONTROLLER_BUTTON_CODES) {
+    if (CONTROLLER_BUTTON_CODES.hasOwnProperty(btnName)) {
+        CONTROLLER_BUTTON_NAMES[CONTROLLER_BUTTON_CODES[btnName]] = btnName;
+    }
+}

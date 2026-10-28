@@ -19,6 +19,10 @@ var themesLoaded = false;
 var settings = {
     hotkey: 'F8',
     hotkeyCode: 66,  // DirectInput scancode for F8
+    // Controller hotkey is a two-button combo (hold primary, press secondary).
+    // Default: hold A (276), tap DPad Up (266).
+    controllerHotkeyPrimary: 276,
+    controllerHotkeySecondary: 266,
     pauseGameOnFocus: true,  // If false, game continues running when UI is open
     cheatMode: false,
     

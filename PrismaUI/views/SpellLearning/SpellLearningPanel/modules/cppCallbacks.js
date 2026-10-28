@@ -1405,3 +1405,19 @@ window.onPanelHiding = function() {
         saveSettings();
     }
 };
+
+// Called when a controller button is captured during settings remapping.
+// The JS panel polls for this after BeginControllerCapture.
+window.onControllerButtonCaptured = function(data) {
+    if (!data) return;
+
+    var code = data.code;
+    var name = data.name || ('Unknown(' + code + ')');
+
+    console.log('[SpellLearning] Controller button captured:', code, name);
+
+    // Forward to the settings panel if it is currently capturing
+    if (typeof window._onControllerButtonCaptured === 'function') {
+        window._onControllerButtonCaptured(code, name);
+    }
+};

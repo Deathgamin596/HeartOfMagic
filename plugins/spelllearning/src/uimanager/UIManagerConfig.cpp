@@ -135,6 +135,10 @@ json GenerateDefaultConfig() {
     return json{
         {"hotkey", "F8"},
         {"hotkeyCode", 66},
+        // Controller hotkey is a two-button combo: hold PRIMARY, press SECONDARY.
+        // Default: hold A (276), tap DPad Up (266).
+        {"controllerHotkeyPrimary", 276},
+        {"controllerHotkeySecondary", 266},
         {"pauseGameOnFocus", true},  // If false, game continues running when UI is open
         {"cheatMode", false},
         {"verboseLogging", false},
@@ -310,6 +314,17 @@ void UIManager::OnLoadUnifiedConfig([[maybe_unused]] const char* argument)
         logger::info("UIManager: Updated hotkey from config: {}", keyCode);
     }
 
+    // Update controller hotkey combo (hold primary, press secondary)
+    if (unifiedConfig.contains("controllerHotkeyPrimary") &&
+        unifiedConfig.contains("controllerHotkeySecondary") &&
+        !unifiedConfig["controllerHotkeyPrimary"].is_null() &&
+        !unifiedConfig["controllerHotkeySecondary"].is_null()) {
+        uint32_t primary = unifiedConfig["controllerHotkeyPrimary"].get<uint32_t>();
+        uint32_t secondary = unifiedConfig["controllerHotkeySecondary"].get<uint32_t>();
+        UpdateControllerHotkey(primary, secondary);
+        logger::info("UIManager: Updated controller hotkey from config: {}+{}", primary, secondary);
+    }
+
     // Update pause game on focus setting
     if (unifiedConfig.contains("pauseGameOnFocus") && !unifiedConfig["pauseGameOnFocus"].is_null()) {
         bool pauseGame = unifiedConfig["pauseGameOnFocus"].get<bool>();
@@ -446,6 +461,14 @@ void UIManager::DoSaveUnifiedConfig(const std::string& configData)
         if (newConfig.contains("hotkeyCode")) {
             uint32_t keyCode = newConfig["hotkeyCode"].get<uint32_t>();
             UpdateInputHandlerHotkey(keyCode);
+        }
+
+        // Update controller hotkey combo (hold primary, press secondary) if changed
+        if (newConfig.contains("controllerHotkeyPrimary") &&
+            newConfig.contains("controllerHotkeySecondary")) {
+            uint32_t primary = newConfig["controllerHotkeyPrimary"].get<uint32_t>();
+            uint32_t secondary = newConfig["controllerHotkeySecondary"].get<uint32_t>();
+            UpdateControllerHotkey(primary, secondary);
         }
 
         // Update pause game on focus if changed

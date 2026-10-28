@@ -939,7 +939,85 @@ function initializeSettings() {
             hotkeyInput.classList.remove('listening');
         });
     }
-    
+
+    // Controller hotkey (two-button combo: hold primary, press secondary)
+    // Default: hold A, tap DPad Up
+    var ctrlPrimaryInput = document.getElementById('controllerHotkeyPrimaryInput');
+    var ctrlSecondaryInput = document.getElementById('controllerHotkeySecondaryInput');
+
+    if (ctrlPrimaryInput && ctrlSecondaryInput) {
+        // Initialize from settings (defaults: A=276, DPad Up=266)
+        settings.controllerHotkeyPrimary = settings.controllerHotkeyPrimary || 276;
+        settings.controllerHotkeySecondary = settings.controllerHotkeySecondary || 266;
+
+        ctrlPrimaryInput.value = CONTROLLER_BUTTON_NAMES[settings.controllerHotkeyPrimary] || ('A (' + settings.controllerHotkeyPrimary + ')');
+        ctrlSecondaryInput.value = CONTROLLER_BUTTON_NAMES[settings.controllerHotkeySecondary] || ('DPad Up (' + settings.controllerHotkeySecondary + ')');
+
+        // Capture the primary button (held)
+        ctrlPrimaryInput.addEventListener('click', function() {
+            if (!window.callCpp) {
+                alert('C++ bridge not available - cannot capture controller input');
+                return;
+            }
+            ctrlPrimaryInput.value = 'Press a gamepad button...';
+            ctrlPrimaryInput.classList.add('listening');
+
+            window._onControllerButtonCaptured = function(code, name) {
+                settings.controllerHotkeyPrimary = code;
+                ctrlPrimaryInput.value = name;
+                ctrlPrimaryInput.classList.remove('listening');
+                window._onControllerButtonCaptured = null;
+                console.log('[SpellLearning] Controller primary set to:', code, name);
+                autoSaveSettings();
+            };
+
+            window.callCpp('BeginControllerCapture', JSON.stringify({ primary: true }));
+            startControllerCapturePoll();
+        });
+
+        // Capture the secondary button (pressed)
+        ctrlSecondaryInput.addEventListener('click', function() {
+            if (!window.callCpp) {
+                alert('C++ bridge not available - cannot capture controller input');
+                return;
+            }
+            ctrlSecondaryInput.value = 'Press a gamepad button...';
+            ctrlSecondaryInput.classList.add('listening');
+
+            window._onControllerButtonCaptured = function(code, name) {
+                settings.controllerHotkeySecondary = code;
+                ctrlSecondaryInput.value = name;
+                ctrlSecondaryInput.classList.remove('listening');
+                window._onControllerButtonCaptured = null;
+                console.log('[SpellLearning] Controller secondary set to:', code, name);
+                autoSaveSettings();
+            };
+
+            window.callCpp('BeginControllerCapture', JSON.stringify({ primary: false }));
+            startControllerCapturePoll();
+        });
+    }
+
+    // Poll for captured controller button codes until one is captured or the
+    // panel cancels the capture (e.g. by clicking elsewhere).
+    var _capturePollInterval = null;
+    function startControllerCapturePoll() {
+        stopControllerCapturePoll();
+        _capturePollInterval = setInterval(function() {
+            if (window.callCpp) {
+                window.callCpp('PollControllerCapture', '');
+            }
+        }, 100);
+    }
+    function stopControllerCapturePoll() {
+        if (_capturePollInterval) {
+            clearInterval(_capturePollInterval);
+            _capturePollInterval = null;
+        }
+    }
+    // Expose for cleanup
+    window.stopControllerCapturePoll = stopControllerCapturePoll;
+
     // Pause Game on Focus toggle
     var pauseGameToggle = document.getElementById('pauseGameOnFocusToggle');
     if (pauseGameToggle) {
@@ -1257,6 +1335,9 @@ function saveUnifiedConfig() {
         // Panel settings
         hotkey: settings.hotkey,
         hotkeyCode: settings.hotkeyCode,
+        // Controller hotkey is a two-button combo (hold primary, press secondary)
+        controllerHotkeyPrimary: settings.controllerHotkeyPrimary,
+        controllerHotkeySecondary: settings.controllerHotkeySecondary,
         developerMode: settings.developerMode,
         cheatMode: settings.cheatMode,
         nodeSizeScaling: settings.nodeSizeScaling,
@@ -1559,6 +1640,9 @@ window.onUnifiedConfigLoaded = function(dataStr) {
         // === Panel Settings ===
         settings.hotkey = data.hotkey || 'F8';
         settings.hotkeyCode = data.hotkeyCode || 66;
+        // Controller hotkey is a two-button combo (hold primary, press secondary)
+        settings.controllerHotkeyPrimary = data.controllerHotkeyPrimary || 276;
+        settings.controllerHotkeySecondary = data.controllerHotkeySecondary || 266;
         settings.developerMode = data.developerMode || false;
         settings.cheatMode = data.cheatMode || false;
         settings.nodeSizeScaling = data.nodeSizeScaling !== false;  // default true

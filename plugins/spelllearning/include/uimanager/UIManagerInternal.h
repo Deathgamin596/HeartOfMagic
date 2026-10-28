@@ -23,3 +23,13 @@ T SafeJsonValue(const nlohmann::json& j, const std::string& key, const T& defaul
 
 // Forward declaration for InputHandler access (defined in Main.cpp)
 void UpdateInputHandlerHotkey(uint32_t keyCode);
+
+// Forward declaration for controller hotkey combo access (defined in Main.cpp)
+void UpdateControllerHotkey(uint32_t primary, uint32_t secondary);
+
+// Forward declaration for controller button capture (defined in Main.cpp)
+// Capture is a polling mechanism: BeginControllerCapture arms the InputHandler,
+// the next gamepad button press is stored, and GetCapturedCode() returns it.
+void BeginControllerCapture(bool primary);
+void EndControllerCapture();
+uint32_t GetCapturedCode();

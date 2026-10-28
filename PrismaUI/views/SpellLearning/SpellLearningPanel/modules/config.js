@@ -236,6 +236,10 @@ var DIFFICULTY_PROFILES = {
 var DEFAULT_SETTINGS = {
     hotkey: 'F8',
     hotkeyCode: 66,
+    // Controller hotkey is a two-button combo (hold primary, press secondary).
+    // Default: hold A (276), tap DPad Up (266).
+    controllerHotkeyPrimary: 276,
+    controllerHotkeySecondary: 266,
     cheatMode: false,
     nodeSizeScaling: true,
     showNodeNames: true,

@@ -335,6 +335,8 @@
     "settings.hotkey.pauseGameOnOpen": "Pause Game on Open",
     "settings.hotkey.reset": "Reset",
     "settings.hotkey.title": "Hotkey",
+    "settings.hotkey.controllerTitle": "Controller Toggle",
+    "settings.hotkey.controllerHint": "Hold primary, press secondary",
     "settings.presets.label": "PRESETS",
     "settings.presets.save": "[+] Save",
     "settings.progression.anySpellXp": "Any Spell XP",

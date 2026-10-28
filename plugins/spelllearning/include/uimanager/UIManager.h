@@ -30,6 +30,20 @@ public:
     void SetAutoLearnRootSpells(bool enable) { m_autoLearnRootSpells = enable; }
     bool GetAutoLearnRootSpells() const { return m_autoLearnRootSpells; }
 
+    // Controller hotkey is a two-button combo (hold primary, press secondary).
+    // Default: hold A, tap DPad Up.
+    void SetControllerHotkey(uint32_t primary, uint32_t secondary)
+    {
+        m_ctrlHotkeyPrimary = primary;
+        m_ctrlHotkeySecondary = secondary;
+        logger::info("UIManager: Controller hotkey set to primary={} secondary={}",
+            primary, secondary);
+    }
+
+    // Capture the next gamepad button press so the settings panel can remap it.
+    void BeginControllerCapture(bool primary);
+    std::string GetCapturedControllerCode() const;
+
     // Send data to Scanner Tab
     void SendSpellData(const std::string& jsonData);
     void UpdateStatus(const std::string& message);
@@ -146,6 +160,11 @@ private:
     // Panel control callbacks
     static void OnHidePanel(const char* argument);
 
+    // Controller hotkey capture (settings remapping)
+    static void OnBeginControllerCapture(const char* argument);
+    static void OnEndControllerCapture(const char* argument);
+    static void OnPollControllerCapture(const char* argument);
+
     // Preset file I/O callbacks
     static void OnSavePreset(const char* argument);
     static void OnDeletePreset(const char* argument);
@@ -167,6 +186,10 @@ private:
     bool m_hasFocus = false;  // Track if we have focus (for main menu → game fix)
     bool m_pauseGameOnFocus = false;  // Default false to avoid input conflicts with menu mods in heavy modlists
     bool m_autoLearnRootSpells = false;
+
+    // Controller hotkey combo (hold primary, press secondary)
+    uint32_t m_ctrlHotkeyPrimary = 276;     // A
+    uint32_t m_ctrlHotkeySecondary = 266;   // DPad Up
     
     // Config save debouncing - prevent duplicate saves and defer off critical frame
     std::mutex m_configSaveMutex;
