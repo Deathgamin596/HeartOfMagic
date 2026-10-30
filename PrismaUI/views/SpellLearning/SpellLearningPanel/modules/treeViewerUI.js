@@ -262,6 +262,10 @@ function initializeTreeViewer() {
     if (llmAutoBtn) llmAutoBtn.addEventListener('click', startLLMAutoGenerate);
     if (llmToolbarBtn) llmToolbarBtn.addEventListener('click', startLLMAutoGenerate);
     
+    // Fix FormIDs button
+    var fixFormIdsBtn = document.getElementById('fix-formids-btn');
+    if (fixFormIdsBtn) fixFormIdsBtn.addEventListener('click', fixTreeFormIds);
+    
     // Save/Reload/Clear tree buttons (cheat mode only)
     var clearTreeBtn = document.getElementById('clear-tree-btn');
     var saveTreeBtn = document.getElementById('save-tree-btn');
@@ -313,12 +317,14 @@ function initializeTreeViewer() {
     var importConfirm = document.getElementById('import-confirm');
     var pasteTreeBtn = document.getElementById('paste-tree-btn');
     var modalBackdrop = document.querySelector('.modal-backdrop');
-    
+
     if (modalCloseBtn) modalCloseBtn.addEventListener('click', hideImportModal);
     if (importCancel) importCancel.addEventListener('click', hideImportModal);
     if (pasteTreeBtn) pasteTreeBtn.addEventListener('click', onPasteTreeClick);
     if (importConfirm) importConfirm.addEventListener('click', importTreeFromModal);
     if (modalBackdrop) modalBackdrop.addEventListener('click', hideImportModal);
+
+    // FormID Fix modal controls (none needed - single click flow)
     
     // Details panel
     window.addEventListener('nodeSelected', function(e) { showSpellDetails(e.detail); });
@@ -390,7 +396,58 @@ function hideImportModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-function loadSavedTree() {
+// =============================================================================
+// Fix Tree FormIDs (single-click: scan Skyrim + remap loaded tree)
+// =============================================================================
+
+/**
+ * Trigger a fresh Skyrim scan and remap all FormIDs in the currently loaded tree.
+ * Uses the loaded tree as the "old reference" (has old FormIDs + names) and the
+ * fresh scan as the "new reference" (has current FormIDs after plugin renumbering).
+ * No file uploads required from the user.
+ */
+function fixTreeFormIds() {
+    if (!state.treeData || !state.treeData.nodes || state.treeData.nodes.length === 0) {
+        setTreeStatus(t('status.noTreeData'));
+        return;
+    }
+    if (!window.callCpp) {
+        setTreeStatus(t('status.noBridge'));
+        return;
+    }
+
+    setTreeStatus(t('status.scanningForFix'));
+
+    // Flag so updateSpellData knows to trigger the remap when the scan completes
+    state.pendingFormIdFix = true;
+
+    // Trigger a fresh Skyrim scan (existing bridge)
+    window.callCpp('ScanSpells', JSON.stringify({ scanMode: 'all_spells', fields: { plugin: true, persistentId: true } }));
+}
+
+/**
+ * Build an old-scan payload from the currently loaded tree nodes.
+ * Each node's formId + name becomes a scan entry (the "old" reference).
+ */
+function buildOldScanFromTree() {
+    var oldSpells = [];
+    if (!state.treeData || !state.treeData.nodes) return { spells: oldSpells };
+
+    state.treeData.nodes.forEach(function(node) {
+        var fid = node.formId || node.id;
+        if (!fid) return;
+        oldSpells.push({
+            formId: fid,
+            name: node.name || '',
+            plugin: node.plugin || '',
+            persistentId: node.persistentId || ''
+        });
+    });
+    return { spells: oldSpells };
+}
+
+// Helper to log to output textarea (global so other modules can use it)
+window.debugOutput = function(msg) {
     if (window.callCpp) {
         window.callCpp('LoadSpellTree', '');
         setTreeStatus(t('status.loadingSavedTree'));

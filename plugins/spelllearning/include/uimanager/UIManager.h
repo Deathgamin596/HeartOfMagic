@@ -151,6 +151,9 @@ private:
     static void OnDeletePreset(const char* argument);
     static void OnLoadPresets(const char* argument);
 
+    // Tree FormID remapper (ports update_tree.py to C++)
+    static void OnUpdateTreeFormIds(const char* argument);
+
     // Auto-test callbacks
     static void OnLoadTestConfig(const char* argument);
     static void OnSaveTestResults(const char* argument);

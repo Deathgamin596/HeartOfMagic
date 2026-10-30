@@ -66,6 +66,7 @@
     "filter.whitelist": "<span class=\"btn-icon\">[+]</span> Whitelist",
 
     "footer.import": "Import",
+    "footer.fixFormIds": "Fix FormIDs",
     "footer.spellCount": "{{total}} spells | {{unlocked}} unlocked",
     "footer.legendAvailable": "Available",
     "footer.legendLearning": "Learning",
@@ -537,6 +538,10 @@
     "status.treeValidationFailed": "Tree validation failed: {{error}}",
     "status.warningUnreachable": "WARNING: {{count}} unreachable spells - regenerate tree",
     "status.working": "Working...",
+    "status.treeFormIdUpdated": "Tree FormIDs updated ({{replacements}} replacements, {{missing}} unmatched)",
+    "status.treeFormIdUpdateFailed": "Tree FormID update failed: {{error}}",
+    "status.scanningForFix": "Scanning Skyrim for updated FormIDs...",
+    "status.noBridge": "C++ bridge not available",
 
     "tabs.scan": "Scan",
     "tabs.scanTitle": "Spell Scanner",

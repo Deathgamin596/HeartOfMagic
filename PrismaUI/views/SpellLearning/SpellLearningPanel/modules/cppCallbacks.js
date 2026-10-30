@@ -170,6 +170,17 @@ window.updateSpellData = function(jsonStr) {
         updateCharCount();
         scanSuccess = true;
 
+        // Auto-trigger FormID remap after scan if fixTreeFormIds() was invoked
+        if (state.pendingFormIdFix && data.spells && data.spells.length > 0) {
+            state.pendingFormIdFix = false;
+            setTimeout(function() {
+                if (typeof window.triggerTreeFormIdUpdate === 'function') {
+                    // oldScan omitted -> built from tree nodes inside triggerTreeFormIdUpdate
+                    window.triggerTreeFormIdUpdate(null, data, state.treeData);
+                }
+            }, 100);
+        }
+
         // Populate scan stats panel early — before downstream code that might throw
         if (data.spells && data.spells.length > 0) {
             var totalEl = document.getElementById('statTotalSpells');
@@ -644,6 +655,94 @@ window.updateSpellInfoBatch = function(json) {
         }
         setTreeStatus(statusMsg);
     }
+};
+
+// Tree formID remapper callback (C++ -> JS)
+// Called by C++ after UpdateTreeFormIds processes oldScan/newScan/tree.
+window.onTreeFormIdsUpdated = function(jsonStr) {
+    console.log('[SpellLearning] onTreeFormIdsUpdated received');
+    try {
+        var response = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+        if (!response || !response.success) {
+            console.error('[SpellLearning] Tree formID update failed:', response && response.error);
+            if (typeof updateStatus === 'function') {
+                updateStatus(t('status.treeFormIdUpdateFailed', {error: response && response.error ? response.error : 'unknown'}));
+            }
+            return;
+        }
+
+        var stats = response.stats || {};
+        console.log('[SpellLearning] Tree formID update complete: ' +
+            stats.mappingsFound + ' mappings, ' + stats.replacementsMade + ' replacements, ' +
+            stats.missingMatches + ' missing');
+
+        if (response.missing && response.missing.length > 0) {
+            console.warn('[SpellLearning] Unmatched spells: ' + response.missing.join(', '));
+        }
+
+        // Expose result so UI can preview/save the new tree
+        state.lastFormIdUpdate = {
+            newTree: response.newTree,
+            stats: stats,
+            mismatches: response.mismatches || [],
+            missing: response.missing || []
+        };
+
+        if (typeof updateStatus === 'function') {
+            updateStatus(t('status.treeFormIdUpdated', {
+                replacements: stats.replacementsMade || 0,
+                missing: stats.missingMatches || 0
+            }));
+        }
+
+        // Notify any registered UI listener
+        if (typeof window.onTreeFormIdUpdateComplete === 'function') {
+            window.onTreeFormIdUpdateComplete(response);
+        }
+
+    } catch (e) {
+        console.error('[SpellLearning] Failed to parse onTreeFormIdsUpdated:', e);
+    }
+};
+
+/**
+ * Trigger C++ tree FormID remap (ports update_tree.py).
+ * @param {Object} oldScan - { spells: [...] } from old scan. If omitted, built from tree nodes.
+ * @param {Object} newScan - { spells: [...] } from new scan
+ * @param {Object} tree - full tree JSON to remap
+ */
+window.triggerTreeFormIdUpdate = function(oldScan, newScan, tree) {
+    if (!window.callCpp) {
+        console.warn('[SpellLearning] callCpp not available - cannot trigger tree formID update');
+        return;
+    }
+
+    // Build old scan from tree nodes if not provided (single-click fix mode)
+    if (!oldScan || !oldScan.spells || oldScan.spells.length === 0) {
+        var oldSpells = [];
+        if (state.treeData && state.treeData.nodes) {
+            state.treeData.nodes.forEach(function(node) {
+                var fid = node.formId || node.id;
+                if (!fid) return;
+                oldSpells.push({
+                    formId: fid,
+                    name: node.name || '',
+                    plugin: node.plugin || '',
+                    persistentId: node.persistentId || ''
+                });
+            });
+        }
+        oldScan = { spells: oldSpells };
+        console.log('[SpellLearning] Built old scan from tree: ' + oldSpells.length + ' nodes');
+    }
+
+    var payload = {
+        oldScan: oldScan || { spells: [] },
+        newScan: newScan || { spells: [] },
+        tree: tree || (state.treeData || {})
+    };
+    console.log('[SpellLearning] Triggering tree FormID update...');
+    window.callCpp('UpdateTreeFormIds', JSON.stringify(payload));
 };
 
 // Helper to log to output textarea (global so other modules can use it)

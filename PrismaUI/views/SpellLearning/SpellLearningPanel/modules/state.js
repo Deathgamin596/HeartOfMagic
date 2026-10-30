@@ -350,6 +350,7 @@ var state = {
     isSettingsOpen: false,
     currentTab: 'spellTree',
     lastSpellData: null,
+    pendingFormIdFix: false,
     promptModified: false,
     originalPrompt: DEFAULT_TREE_RULES,
     // Field output settings

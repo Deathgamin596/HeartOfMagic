@@ -3,6 +3,12 @@
 #include "EncodingUtils.h"
 #include "ThreadUtils.h"
 
+#include <unordered_map>
+#include <set>
+
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 // =============================================================================
 // CLIPBOARD CALLBACKS (Windows API)
 // =============================================================================
@@ -377,4 +383,242 @@ void UIManager::OnSaveTestResults(const char* argument)
     } catch (const std::exception& e) {
         logger::error("UIManager: Exception saving test results: {}", e.what());
     }
+}
+
+// =============================================================================
+// TREE FORMID UPDATER (ports update_tree.py logic to C++, no Python required)
+// =============================================================================
+//
+// Re-maps FormIDs in a spell tree JSON when plugins have been renumbered
+// (e.g. after a mod update). Builds an old→new FormID lookup from an old scan
+// and a new scan, matching by spell name → plugin+name → persistentId, then
+// recursively rewrites every matching FormID string inside the tree.
+//
+// Called from JS via callCpp("UpdateTreeFormIds", JSON).
+// Argument JSON:
+//   { "oldScan": { "spells": [...] },
+//     "newScan": { "spells": [...] },
+//     "tree":    { <full tree JSON> } }
+// Response (sent back to JS on onTreeFormIdsUpdated):
+//   { "success": bool,
+//     "newTree": { <tree with remapped FormIDs> },
+//     "stats":   { "mappingsFound": N, "missingMatches": M, "replacementsMade": R },
+//     "mismatches": [ { plugin, name, old_formId, new_formId }, ... ],
+//     "missing": [ "PLUGIN | name", ... ] }
+// =============================================================================
+
+namespace {
+
+    // Recursively replace any string that is a key in formidMap, returning the
+    // (possibly modified) json and counting replacements made.
+    json ReplaceFormIdsInTree(const json& obj,
+                              const std::unordered_map<std::string, std::string>& formidMap,
+                              std::set<std::string>& seenIds,
+                              const std::unordered_map<std::string, json>& mismatchInfo,
+                              std::vector<json>& mismatchRows,
+                              size_t& replacementsMade)
+    {
+        if (obj.is_object()) {
+            json result = json::object();
+            for (auto it = obj.begin(); it != obj.end(); ++it) {
+                result[it.key()] = ReplaceFormIdsInTree(it.value(), formidMap, seenIds, mismatchInfo, mismatchRows, replacementsMade);
+            }
+            return result;
+        }
+        if (obj.is_array()) {
+            json result = json::array();
+            for (const auto& elem : obj) {
+                result.push_back(ReplaceFormIdsInTree(elem, formidMap, seenIds, mismatchInfo, mismatchRows, replacementsMade));
+            }
+            return result;
+        }
+        if (obj.is_string()) {
+            std::string s = obj.get<std::string>();
+            auto mapIt = formidMap.find(s);
+            if (mapIt != formidMap.end()) {
+                if (seenIds.insert(s).second) {
+                    auto infoIt = mismatchInfo.find(s);
+                    if (infoIt != mismatchInfo.end()) {
+                        mismatchRows.push_back(infoIt->second);
+                    }
+                }
+                ++replacementsMade;
+                return mapIt->second;
+            }
+        }
+        return obj;
+    }
+}
+
+void UIManager::OnUpdateTreeFormIds(const char* argument)
+{
+    if (!argument || strlen(argument) == 0) {
+        logger::warn("UIManager: UpdateTreeFormIds - no data provided");
+        return;
+    }
+
+    std::string argStr(argument);
+
+    AddTaskToGameThread("UpdateTreeFormIds", [argStr]() {
+        auto* instance = GetSingleton();
+        if (!instance || !instance->m_prismaUI) return;
+
+        try {
+            json request = json::parse(argStr);
+
+            if (!request.contains("oldScan") || !request["oldScan"].is_object() ||
+                !request.contains("newScan") || !request["newScan"].is_object() ||
+                !request.contains("tree") || !request["tree"].is_object()) {
+                logger::error("UIManager: UpdateTreeFormIds - missing oldScan/newScan/tree");
+                nlohmann::json response;
+                response["success"] = false;
+                response["error"] = "Request must include oldScan, newScan, and tree objects";
+                instance->m_prismaUI->InteropCall(instance->m_view, "onTreeFormIdsUpdated", response.dump().c_str());
+                return;
+            }
+
+            const json& oldScan = request["oldScan"];
+            const json& newScan = request["newScan"];
+            const json& tree = request["tree"];
+
+            // ------------------------------------------------------------------
+            // Build lookup from new scan (name → [formIds], plugin+name → [formIds], persistentId → formId)
+            // ------------------------------------------------------------------
+            std::unordered_map<std::string, std::vector<std::string>> nameLookup;
+            std::unordered_map<std::string, std::vector<std::string>> pluginNameLookup;
+            std::unordered_map<std::string, std::string> persistentLookup;
+
+            if (newScan.contains("spells") && newScan["spells"].is_array()) {
+                for (const auto& spell : newScan["spells"]) {
+                    if (!spell.is_object()) continue;
+                    std::string name = spell.value("name", "");
+                    std::string plugin = spell.value("plugin", "");
+                    std::string formid = spell.value("formId", "");
+                    std::string persistentId = spell.value("persistentId", "");
+
+                    if (!formid.empty()) {
+                        nameLookup[name].push_back(formid);
+                        std::string pnKey = plugin + "|" + name;
+                        pluginNameLookup[pnKey].push_back(formid);
+                    }
+                    if (!persistentId.empty()) {
+                        persistentLookup[persistentId] = formid;
+                    }
+                }
+            }
+
+            // Warn on duplicates (mirrors Python behavior, informational only)
+            for (auto& [name, ids] : nameLookup) {
+                if (ids.size() > 1) {
+                    logger::warn("UIManager: Duplicate spell name in new scan: {}", name);
+                }
+            }
+            for (auto& [key, ids] : pluginNameLookup) {
+                if (ids.size() > 1) {
+                    logger::warn("UIManager: Duplicate spell in new scan for plugin+name: {}", key);
+                }
+            }
+
+            // ------------------------------------------------------------------
+            // Build old → new FormID mapping
+            // ------------------------------------------------------------------
+            std::unordered_map<std::string, std::string> formidMap;
+            std::unordered_map<std::string, json> mismatchInfo;
+            std::vector<std::string> missing;
+
+            if (oldScan.contains("spells") && oldScan["spells"].is_array()) {
+                for (const auto& spell : oldScan["spells"]) {
+                    if (!spell.is_object()) continue;
+                    std::string name = spell.value("name", "");
+                    std::string plugin = spell.value("plugin", "");
+                    std::string oldFormid = spell.value("formId", "");
+
+                    if (oldFormid.empty()) continue;
+
+                    std::string newFormid;
+
+                    auto idsByName = nameLookup.find(name);
+                    if (idsByName != nameLookup.end() && idsByName->second.size() == 1) {
+                        newFormid = idsByName->second[0];
+                    } else {
+                        std::string pnKey = plugin + "|" + name;
+                        auto idsByPluginName = pluginNameLookup.find(pnKey);
+                        if (idsByPluginName != pluginNameLookup.end() && idsByPluginName->second.size() == 1) {
+                            newFormid = idsByPluginName->second[0];
+                        } else {
+                            std::string persistentId = spell.value("persistentId", "");
+                            if (!persistentId.empty()) {
+                                auto pit = persistentLookup.find(persistentId);
+                                if (pit != persistentLookup.end()) {
+                                    newFormid = pit->second;
+                                    logger::info("UIManager: Using persistentId fallback for {} | {}: {}",
+                                        plugin, name, persistentId);
+                                }
+                            }
+                        }
+                    }
+
+                    if (newFormid.empty()) {
+                        missing.push_back(plugin + " | " + name);
+                        continue;
+                    }
+
+                    if (oldFormid != newFormid) {
+                        formidMap[oldFormid] = newFormid;
+                        json info;
+                        info["plugin"] = plugin;
+                        info["name"] = name;
+                        info["old_formId"] = oldFormid;
+                        info["new_formId"] = newFormid;
+                        mismatchInfo[oldFormid] = info;
+                    }
+                }
+            }
+
+            logger::info("UIManager: UpdateTreeFormIds - mappings found: {}, missing matches: {}",
+                formidMap.size(), missing.size());
+
+            // ------------------------------------------------------------------
+            // Recursive replacement in tree
+            // ------------------------------------------------------------------
+            std::set<std::string> seenIds;
+            std::vector<json> mismatchRows;
+            size_t replacementsMade = 0;
+
+            json newTree = ReplaceFormIdsInTree(tree, formidMap, seenIds, mismatchInfo, mismatchRows, replacementsMade);
+
+            logger::info("UIManager: UpdateTreeFormIds - replacements made: {}", replacementsMade);
+
+            // ------------------------------------------------------------------
+            // Send response back to JS
+            // ------------------------------------------------------------------
+            nlohmann::json response;
+            response["success"] = true;
+            response["newTree"] = newTree;
+            response["stats"]["mappingsFound"] = (int)formidMap.size();
+            response["stats"]["missingMatches"] = (int)missing.size();
+            response["stats"]["replacementsMade"] = (int)replacementsMade;
+            response["mismatches"] = mismatchRows;
+            response["missing"] = missing;
+
+            instance->m_prismaUI->InteropCall(instance->m_view, "onTreeFormIdsUpdated", response.dump().c_str());
+
+        } catch (const std::exception& e) {
+            logger::error("UIManager: UpdateTreeFormIds exception: {}", e.what());
+            nlohmann::json response;
+            response["success"] = false;
+            response["error"] = e.what();
+            if (instance->m_prismaUI) {
+                instance->m_prismaUI->InteropCall(instance->m_view, "onTreeFormIdsUpdated", response.dump().c_str());
+            }
+        } catch (...) {
+            logger::error("UIManager: UpdateTreeFormIds unknown exception");
+            nlohmann::json response;
+            response["success"] = false;
+            response["error"] = "Unknown internal error";
+            if (instance->m_prismaUI) {
+                instance->m_prismaUI->InteropCall(instance->m_view, "onTreeFormIdsUpdated", response.dump().c_str());
+            }
+        }
+    });
 }

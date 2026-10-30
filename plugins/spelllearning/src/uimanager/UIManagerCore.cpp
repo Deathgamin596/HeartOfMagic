@@ -121,6 +121,9 @@ bool UIManager::Initialize()
     m_prismaUI->RegisterJSListener(m_view, "DeletePreset", OnDeletePreset);
     m_prismaUI->RegisterJSListener(m_view, "LoadPresets", OnLoadPresets);
 
+    // Register JS callbacks - Tree FormID remapper (update_tree.py port)
+    m_prismaUI->RegisterJSListener(m_view, "UpdateTreeFormIds", OnUpdateTreeFormIds);
+
     // Register JS callbacks - Panel control
     m_prismaUI->RegisterJSListener(m_view, "HidePanel", OnHidePanel);
 
