@@ -3,7 +3,7 @@
         "language": "Português (Brasil)",
         "locale": "pt-br",
         "author": "Claude (tradução automática)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Analisando relações entre magias...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// ERRO: Nenhum dado de magia disponível. Faça a varredura de magias primeiro.",
     "generationMode.noValidJson": "Não foi possível encontrar JSON válido na resposta. Verifique o formato.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Configurações Atuais",
     "howto.gainingXp": "[^] Ganhando XP",
@@ -544,7 +544,8 @@
     "tree.emptyState.hint": "Faça a varredura de suas magias e construa uma árvore para começar.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "Nenhuma árvore de magias carregada",
-    "tree.instructions": "Arraste para mover / Scroll para zoom / Clique no nó para selecionar",
+    "tree.panHint": "Arraste com o botão direito para mover",
+    "tree.instructions": "Arraste com o botão direito para mover / Scroll para zoom / Clique no nó para selecionar",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder não encontrado",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} nós posicionados",

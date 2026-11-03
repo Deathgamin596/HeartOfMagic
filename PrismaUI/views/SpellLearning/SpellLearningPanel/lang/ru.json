@@ -3,7 +3,7 @@
         "language": "Русский",
         "locale": "ru",
         "author": "Claude (машинный перевод)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Анализ связей между заклинаниями...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// ОШИБКА: нет данных о заклинаниях. Сначала просканируйте заклинания.",
     "generationMode.noValidJson": "Не удалось найти валидный JSON в ответе. Проверьте формат.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Текущие настройки",
     "howto.gainingXp": "[^] Получение XP",
@@ -311,6 +311,8 @@
     "settings.devDebug.title": "Разработка и отладка",
     "settings.devDebug.verboseLogging": "Подробное логирование",
     "settings.devDebug.verboseLoggingDesc": "Дополнительное логирование в консоль для диагностики",
+    "settings.autoAdvance.desc": "Управление автоматическим прогрессом обучения к выбранному целевому заклинанию.",
+    "settings.autoAdvance.title": "Настройки Auto-Advance",
     "settings.earlyLearning.binaryEffectThreshold": "Порог бинарного эффекта",
     "settings.earlyLearning.desc": "Предоставлять заклинания раньше с уменьшенной мощностью. Мощность растёт с практикой.",
     "settings.earlyLearning.enable": "Включить раннее изучение",
@@ -544,7 +546,8 @@
     "tree.emptyState.hint": "Просканируйте заклинания и постройте дерево, чтобы начать.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "Дерево заклинаний не загружено",
-    "tree.instructions": "Перетаскивайте для перемещения / Прокрутка для масштабирования / Нажмите на узел для выбора",
+    "tree.panHint": "Перетаскивание правой кнопкой мыши для перемещения",
+    "tree.instructions": "Перетаскивайте правой кнопкой мыши для перемещения / Прокрутка для масштабирования / Нажмите на узел для выбора",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder не найден",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} узлов размещено",

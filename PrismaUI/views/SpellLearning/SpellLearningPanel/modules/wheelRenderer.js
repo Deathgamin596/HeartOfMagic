@@ -2205,7 +2205,6 @@ var WheelRenderer = {
         
         // If 2 or fewer schools: always rotate to center the school's axis
         if (visibleSchoolCount <= 2 && school && school.spokeAngle !== undefined) {
-            this.rotateSchoolToTop(nodeSchool);
             return;
         }
         
@@ -2225,7 +2224,7 @@ var WheelRenderer = {
         
         // If node is more than 45 degrees from view center, rotate school axis to top
         if (distanceFromTop > 45 && school && school.spokeAngle !== undefined) {
-            this.rotateSchoolToTop(nodeSchool);
+            return;
         }
     },
     

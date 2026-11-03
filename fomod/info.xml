@@ -1,7 +1,7 @@
 <fomod>
-  <Name>Heart of Magic</Name>
-  <Author>DinkelZombie</Author>
-  <Version>2.5.6</Version>
+  <Name>Heart of Magic - Reworked</Name>
+  <Author>Originally by Dinklezombie and edited by Pkranger596(cory)</Author>
+  <Version>1.0.0</Version>
   <Website/>
-  <Description>Spell learning progression system with procedural spell trees, PrismaUI panel, and SkyrimNet integration.</Description>
+  <Description>A rework of the Heart of magic mod with new features and bug fixes</Description>
 </fomod>

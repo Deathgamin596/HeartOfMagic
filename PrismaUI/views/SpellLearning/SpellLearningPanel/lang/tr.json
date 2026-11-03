@@ -3,7 +3,7 @@
         "language": "Türkçe",
         "locale": "tr",
         "author": "Claude (makine çevirisi)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Büyü ilişkileri analiz ediliyor...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// HATA: Büyü verisi mevcut değil. Lütfen önce büyüleri tarayın.",
     "generationMode.noValidJson": "Yanıtta geçerli JSON bulunamadı. Lütfen formatı kontrol edin.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Mevcut Ayarlar",
     "howto.gainingXp": "[^] TP Kazanma",
@@ -311,6 +311,8 @@
     "settings.devDebug.title": "Geliştirici & Hata Ayıklama",
     "settings.devDebug.verboseLogging": "Ayrıntılı Günlükleme",
     "settings.devDebug.verboseLoggingDesc": "Sorun giderme için ek konsol günlüğü",
+    "settings.autoAdvance.desc": "Seçilen hedef büyüye doğru otomatik öğrenme ilerlemesini kontrol eder.",
+    "settings.autoAdvance.title": "Otomatik İlerleme Ayarları",
     "settings.earlyLearning.binaryEffectThreshold": "İkili Etki Eşiği",
     "settings.earlyLearning.desc": "Büyüleri erken düşük güçte ver. Güç pratikle artar.",
     "settings.earlyLearning.enable": "Erken Öğrenmeyi Etkinleştir",
@@ -544,7 +546,8 @@
     "tree.emptyState.hint": "Başlamak için büyülerinizi tarayın ve bir ağaç oluşturun.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "Büyü ağacı yüklenmedi",
-    "tree.instructions": "Kaydırmak için sürükle / Yakınlaştırmak için kaydır / Seçmek için düğüme tıkla",
+    "tree.panHint": "Sağ tıkla sürüklemek için",
+    "tree.instructions": "Sağ tıkla sürükleyerek kaydırma / Yakınlaştırmak için kaydır / Seçmek için düğüme tıkla",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder bulunamadı",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} düğüm yerleştirildi",

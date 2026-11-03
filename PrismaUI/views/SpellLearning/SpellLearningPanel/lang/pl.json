@@ -3,7 +3,7 @@
         "language": "Polski",
         "locale": "pl",
         "author": "Claude (tłumaczenie maszynowe)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Analizowanie powiązań między zaklęciami...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// BŁĄD: Brak danych zaklęć. Najpierw zeskanuj zaklęcia.",
     "generationMode.noValidJson": "Nie znaleziono prawidłowego JSON w odpowiedzi. Sprawdź format.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Bieżące ustawienia",
     "howto.gainingXp": "[^] Zdobywanie XP",
@@ -311,6 +311,8 @@
     "settings.devDebug.title": "Deweloper i debugowanie",
     "settings.devDebug.verboseLogging": "Szczegółowe logowanie",
     "settings.devDebug.verboseLoggingDesc": "Dodatkowe logowanie konsoli do rozwiązywania problemów",
+    "settings.autoAdvance.desc": "Kontrola automatycznego postępu nauki w kierunku wybranego czaru docelowego.",
+    "settings.autoAdvance.title": "Ustawienia Auto-Advance",
     "settings.earlyLearning.binaryEffectThreshold": "Próg efektu binarnego",
     "settings.earlyLearning.desc": "Przyznaj zaklęcia wcześniej przy zmniejszonej mocy. Moc wzrasta w miarę ćwiczenia.",
     "settings.earlyLearning.enable": "Włącz wczesną naukę",
@@ -544,7 +546,8 @@
     "tree.emptyState.hint": "Zeskanuj zaklęcia i zbuduj drzewo, aby rozpocząć.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "Brak załadowanego drzewa zaklęć",
-    "tree.instructions": "Przeciągnij, aby przesunąć / Przewiń, aby powiększyć / Kliknij węzeł, aby wybrać",
+    "tree.panHint": "Przeciągnij prawym przyciskiem, aby przesunąć",
+    "tree.instructions": "Przeciągnij prawym przyciskiem, aby przesunąć / Przewiń, aby powiększyć / Kliknij węzeł, aby wybrać",
 
     "treeGrowth.builderNotFound": "Nie znaleziono SpellTreeBuilder",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} węzłów umieszczonych",

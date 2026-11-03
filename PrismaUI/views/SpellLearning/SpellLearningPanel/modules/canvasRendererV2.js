@@ -12,6 +12,16 @@
  * Depends on: settings, state (no TREE_CONFIG, no WheelRenderer, no GRID_CONFIG)
  */
 
+// CEF sometimes strips e.altKey from mouse events once input is grabbed.
+// Track Alt key state globally so pan detection works even when e.altKey is false.
+var _altKeyDown = false;
+window.addEventListener('keydown', function(e) {
+    if (e.key === 'Alt' || e.key === 'AltGraph') _altKeyDown = true;
+});
+window.addEventListener('keyup', function(e) {
+    if (e.key === 'Alt' || e.key === 'AltGraph') _altKeyDown = false;
+});
+
 var CanvasRenderer = {
     canvas: null,
     ctx: null,
@@ -54,12 +64,9 @@ var CanvasRenderer = {
     // Performance
     _rafId: null,
     _needsRender: true,
-    _animationOnlyRender: false,  // True when only animations need update (can be throttled)
+    _animationOnlyRender: false,
     _lastRenderTime: 0,
     _logNextRender: false,
-    _pendingPanX: 0,
-    _pendingPanY: 0,
-    _panRafPending: false,
     
     // Node lookup
     _nodeMap: null,
@@ -331,7 +338,7 @@ var CanvasRenderer = {
         if (!this.canvas) {
             this.canvas = document.createElement('canvas');
             this.canvas.id = 'tree-canvas';
-            this.canvas.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; z-index: 1;';
+            this.canvas.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; z-index: 1; touch-action: none;';
             this.ctx = this.canvas.getContext('2d');
 
             this.setupEvents();
@@ -767,14 +774,13 @@ var CanvasRenderer = {
     // =========================================================================
     
     onMouseDown: function(e) {
-        // ALT+click is the pan gesture. We do NOT start panning here because the
-        // browser stops reporting modifier state in mouse events once a
-        // mousedown "grabs" the canvas — so starting on mousedown causes
-        // subsequent mousemove events to arrive with e.altKey === false and
-        // panning to die immediately, forcing the user to also hold CTRL.
-        // Instead, record the ALT+click intent and start panning on the first
-        // mousemove, which still carries the ALT modifier reliably.
-        if ((e.button === 0 || e.button === 2) && e.altKey) {
+        // Right-click drag is the pan gesture — works reliably in CEF/Ultralight
+        // because Alt key is stripped from mouse events by the browser process.
+        // Left-click without Alt selects nodes; Alt+left-click is kept as a
+        // secondary pan gesture for browsers that report it correctly.
+        if ((e.button === 0 || e.button === 2) && (e.altKey || _altKeyDown || e.button === 2)) {
+            e.preventDefault();
+            e.stopPropagation();
             this._panPending = true;
             this._panPendingX = e.clientX;
             this._panPendingY = e.clientY;
@@ -788,10 +794,9 @@ var CanvasRenderer = {
 onMouseMove: function(e) {
         var self = this;
 
-        // Start panning from a pending ALT+mousedown. Panning is started here
+        // Start panning from a pending mousedown. Panning is started here
         // (not in onMouseDown) because the browser stops reporting modifier state
-        // in mouse events once the canvas grabs input — starting on mousemove keeps
-        // the ALT modifier reliably reported for the duration of the drag.
+        // in mouse events once the canvas grabs input.
         if (this._panPending && !this.isPanning) {
             this._panPending = false;
             this.isPanning = true;
@@ -800,19 +805,11 @@ onMouseMove: function(e) {
         }
 
         if (this.isPanning) {
-            // Batch pan updates using RAF to prevent multiple renders per frame
-            this._pendingPanX = e.clientX - this.panStartX;
-            this._pendingPanY = e.clientY - this.panY;
-
-            if (!this._panRafPending) {
-                this._panRafPending = true;
-                requestAnimationFrame(function() {
-                    self._panRafPending = false;
-                    self.panX = self._pendingPanX;
-                    self.panY = self._pendingPanY;
-                    self._needsRender = true;
-                });
-            }
+            e.preventDefault();
+            // Update pan directly on each mousemove for smooth response
+            this.panX = e.clientX - this.panStartX;
+            this.panY = e.clientY - this.panStartY;
+            this._needsRender = true;
         } else {
             var rect = this.canvas.getBoundingClientRect();
             var world = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
@@ -820,7 +817,7 @@ onMouseMove: function(e) {
 
             if (node !== this.hoveredNode) {
                 this.hoveredNode = node;
-                this.canvas.style.cursor = e.altKey ? 'grab' : (node ? 'pointer' : 'grab');
+                this.canvas.style.cursor = (e.altKey || _altKeyDown) ? 'grab' : (node ? 'pointer' : 'grab');
                 this._needsRender = true;
 
                 if (node) {
@@ -869,9 +866,6 @@ onMouseMove: function(e) {
             this._needsRender = true;
 
             console.log('[CanvasRenderer] Node clicked:', clickedNode.name || clickedNode.id);
-
-            // ALWAYS rotate school to top on click
-            this.rotateSchoolToTop(clickedNode.school);
 
             // Dispatch nodeSelected event (same as WheelRenderer) for detail panel
             window.dispatchEvent(new CustomEvent('nodeSelected', { detail: clickedNode }));

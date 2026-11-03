@@ -3,7 +3,7 @@
         "language": "Deutsch",
         "locale": "de",
         "author": "Claude (Maschinenübersetzung)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Analysiere Zauberverbindungen...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// FEHLER: Keine Zauberdaten verfügbar. Bitte scanne zuerst die Zauber.",
     "generationMode.noValidJson": "Kein gültiges JSON in der Antwort gefunden. Bitte überprüfe das Format.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Aktuelle Einstellungen",
     "howto.gainingXp": "[^] EP verdienen",
@@ -311,6 +311,8 @@
     "settings.devDebug.title": "Entwickler & Debug",
     "settings.devDebug.verboseLogging": "Ausführliche Protokollierung",
     "settings.devDebug.verboseLoggingDesc": "Zusätzliche Konsolenausgabe zur Fehlersuche",
+    "settings.autoAdvance.desc": "Kontrolle der automatischen Lernfortschritte zu einem gewählten Zielzauber.",
+    "settings.autoAdvance.title": "Auto-Advance-Einstellungen",
     "settings.earlyLearning.binaryEffectThreshold": "Binärer Effekt-Schwellenwert",
     "settings.earlyLearning.desc": "Zauber früh mit reduzierter Kraft gewähren. Kraft steigt durch Übung.",
     "settings.earlyLearning.enable": "Frühes Lernen aktivieren",
@@ -544,7 +546,8 @@
     "tree.emptyState.hint": "Scanne deine Zauber und erstelle einen Baum, um loszulegen.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "Kein Zauberbaum geladen",
-    "tree.instructions": "Ziehen zum Verschieben / Scrollen zum Zoomen / Knoten klicken zum Auswählen",
+    "tree.panHint": "Rechtsklick-Ziehen zum Verschieben",
+    "tree.instructions": "Rechtsklick-Ziehen zum Verschieben / Scrollen zum Zoomen / Knoten klicken zum Auswählen",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder nicht gefunden",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} Knoten platziert",

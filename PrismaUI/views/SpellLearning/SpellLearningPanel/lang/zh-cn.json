@@ -3,7 +3,7 @@
         "language": "简体中文",
         "locale": "zh-cn",
         "author": "Claude（机器翻译）",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "正在分析法术关联...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// 错误：没有可用的法术数据。请先扫描法术。",
     "generationMode.noValidJson": "在响应中未找到有效的JSON。请检查格式。",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] 当前设置",
     "howto.gainingXp": "[^] 获取经验",
@@ -311,6 +311,8 @@
     "settings.devDebug.title": "开发者与调试",
     "settings.devDebug.verboseLogging": "详细日志",
     "settings.devDebug.verboseLoggingDesc": "用于故障排除的额外控制台日志",
+    "settings.autoAdvance.desc": "控制自动学习进度朝所选目标法术推进。",
+    "settings.autoAdvance.title": "自动进阶设置",
     "settings.earlyLearning.binaryEffectThreshold": "二元效果阈值",
     "settings.earlyLearning.desc": "以减弱威力提前授予法术。威力随练习提升。",
     "settings.earlyLearning.enable": "启用早期学习",
@@ -544,7 +546,8 @@
     "tree.emptyState.hint": "扫描法术并构建树以开始。",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "未加载法术树",
-    "tree.instructions": "拖拽平移 / 滚轮缩放 / 点击节点选择",
+    "tree.panHint": "右键拖拽平移",
+    "tree.instructions": "右键拖拽平移 / 滚轮缩放 / 点击节点选择",
 
     "treeGrowth.builderNotFound": "未找到SpellTreeBuilder",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} 节点已放置",

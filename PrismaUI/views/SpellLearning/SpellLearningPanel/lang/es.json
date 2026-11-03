@@ -3,7 +3,7 @@
         "language": "Español",
         "locale": "es",
         "author": "Claude (traducción automática)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Analizando relaciones entre hechizos...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// ERROR: No hay datos de hechizos disponibles. Escanea los hechizos primero.",
     "generationMode.noValidJson": "No se encontró JSON válido en la respuesta. Verifica el formato.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Ajustes Actuales",
     "howto.gainingXp": "[^] Ganar XP",
@@ -311,6 +311,8 @@
     "settings.devDebug.title": "Desarrollador y Depuración",
     "settings.devDebug.verboseLogging": "Registro Detallado",
     "settings.devDebug.verboseLoggingDesc": "Registro extra en consola para resolución de problemas",
+    "settings.autoAdvance.desc": "Controlar el progreso de aprendizaje automático hacia un hechizo de destino elegido.",
+    "settings.autoAdvance.title": "Configuración de Auto-Advance",
     "settings.earlyLearning.binaryEffectThreshold": "Umbral de Efecto Binario",
     "settings.earlyLearning.desc": "Otorga hechizos tempranamente con poder reducido. El poder aumenta con la práctica.",
     "settings.earlyLearning.enable": "Activar Aprendizaje Temprano",
@@ -544,7 +546,8 @@
     "tree.emptyState.hint": "Escanea tus hechizos y construye un árbol para comenzar.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "No hay árbol de hechizos cargado",
-    "tree.instructions": "Arrastra para mover / Desplaza para zoom / Clic en nodo para seleccionar",
+    "tree.panHint": "Arrastrar con clic derecho para mover",
+    "tree.instructions": "Arrastra con clic derecho para mover / Desplaza para zoom / Clic en nodo para seleccionar",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder no encontrado",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} nodos colocados",

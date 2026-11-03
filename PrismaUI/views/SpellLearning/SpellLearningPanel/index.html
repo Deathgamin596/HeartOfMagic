@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="header.title">Heart of Magic</title>
+    <title data-i18n="header.title">Heart of Magic - Reworked</title>
     <!-- Use styles-skyrim.css for native Skyrim UI look, or styles.css for modern dark theme -->
     <link rel="stylesheet" href="styles-skyrim.css">
     <!-- AUTO-TEST FLAG: Set to true to auto-trigger scan+build on panel load (for debugging) -->
@@ -17,8 +17,8 @@
         <!-- Draggable Header -->
         <div class="panel-header" id="panelHeader">
             <div class="header-left">
-                <span class="panel-title" data-i18n="header.panelTitle">HEART OF MAGIC</span>
-                <span class="version-tag">v2.0.0</span>
+                <span class="panel-title" data-i18n="header.panelTitle">Heart of Magic - Reworked</span>
+                <span class="version-tag">v1.0.0</span>
             </div>
             <div class="header-right">
                 <button class="header-btn header-btn-wide" id="returnToTreeBtn" style="display:none;" title="Return to Spell Tree" data-i18n="tabs.return" data-i18n-title="tabs.returnTitle">Return</button>
@@ -480,7 +480,7 @@
                             <button id="edit-tool-pen" class="zoom-btn edit-tool" title="Pen Tool - Draw Prerequisites" data-i18n-title="buttons.penTool">✒</button>
                             <button id="edit-tool-eraser" class="zoom-btn edit-tool" title="Eraser Tool - Remove Links" data-i18n-title="buttons.eraserTool">⌫</button>
                         </span>
-                        <span class="pan-hint" title="Hold ALT to pan the canvas" data-i18n-title="tree.panHint" style="font-size: 11px; opacity: 0.6; margin-left: 8px; white-space: nowrap;">Alt+Drag = Pan</span>
+                        <span class="pan-hint" title="Right-click drag to pan the canvas" data-i18n-title="tree.panHint" style="font-size: 11px; opacity: 0.6; margin-left: 8px; white-space: nowrap;">Right-Click Drag = Pan</span>
                     </div>
                     
                     <!-- Render Customization Settings Popup -->
@@ -710,7 +710,7 @@
                     
                     <!-- Tree Instructions -->
                     <div class="tree-instructions">
-                        <span data-i18n="tree.instructions">Hold Alt + Drag to pan / Scroll to zoom / Click node to select</span>
+                        <span data-i18n="tree.instructions">Right-Click Drag to pan / Scroll to zoom / Click node to select</span>
                     </div>
                     
                     <!-- Empty State -->
@@ -1012,39 +1012,6 @@
                             </label>
                         </div>
 
-                        <!-- Auto-Advance Learning Target -->
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <span class="setting-label">Auto-Advance Target</span>
-                                <span class="setting-desc">When a spell is mastered, auto-learn the next available spell</span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="autoAdvanceLearningToggle" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                                <div id="autoAdvanceModeToggle" class="segmented-toggle">
-                                    <div class="seg-btn active" data-value="branch">Branch</div>
-                                    <div class="seg-btn" data-value="random">Random</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Auto-Advance Target Spell (work bottom-up toward this node) -->
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <span class="setting-label">Auto-Advance Target</span>
-                                <span class="setting-desc">Pick a destination spell; auto-advance walks the tree from the current node up to it</span>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                <select id="autoAdvanceSchoolSelect" class="setting-select" style="min-width:140px;"></select>
-                                <select id="autoAdvanceTargetSelect" class="setting-select" style="min-width:180px;" disabled></select>
-                                <button id="setAutoAdvanceTargetBtn" class="action-btn" style="padding:4px 10px;font-size:0.85em;">Set Target</button>
-                                <button id="clearAutoAdvanceTargetBtn" class="action-btn" style="padding:4px 10px;font-size:0.85em;">Clear</button>
-                                <span id="autoAdvanceCurrentTarget" style="font-size:0.8em;color:var(--text-muted);">None set</span>
-                            </div>
-                        </div>
-
                         <!-- Overall XP Multiplier -->
                         <div class="setting-row slider-row">
                             <div class="setting-info">
@@ -1260,6 +1227,45 @@
                                     <input type="range" id="revealDescSlider" min="0" max="100" value="50" step="5" class="setting-slider">
                                     <span id="revealDescValue" class="slider-value">50%</span>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- ===== Auto-Advance Settings ===== -->
+                        <div class="settings-subsection">
+                            <span class="subsection-title" data-i18n="settings.autoAdvance.title">Auto-Advance Settings</span>
+                            <span class="setting-desc" style="display: block; margin-bottom: 12px;" data-i18n="settings.autoAdvance.desc">Control automatic learning progression toward a chosen destination spell.</span>
+                        </div>
+
+                        <!-- Auto-Advance Learning Target -->
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <span class="setting-label">Auto-Advance Learning</span>
+                                <span class="setting-desc">When a spell is mastered, auto-learn the next available spell</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="autoAdvanceLearningToggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <div id="autoAdvanceModeToggle" class="segmented-toggle">
+                                    <div class="seg-btn active" data-value="branch">Branch</div>
+                                    <div class="seg-btn" data-value="random">Random</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Auto-Advance Target Spell (work bottom-up toward this node) -->
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <span class="setting-label">Auto-Advance Target</span>
+                                <span class="setting-desc">Pick a destination spell; auto-advance walks the tree from the current node up to it</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <select id="autoAdvanceSchoolSelect" class="setting-select" style="min-width:140px;"></select>
+                                <select id="autoAdvanceTargetSelect" class="setting-select" style="min-width:180px;" disabled></select>
+                                <button id="setAutoAdvanceTargetBtn" class="action-btn" style="padding:4px 10px;font-size:0.85em;">Set Target</button>
+                                <button id="clearAutoAdvanceTargetBtn" class="action-btn" style="padding:4px 10px;font-size:0.85em;">Clear</button>
+                                <span id="autoAdvanceCurrentTarget" style="font-size:0.8em;color:var(--text-muted);">None set</span>
                             </div>
                         </div>
                     </div>

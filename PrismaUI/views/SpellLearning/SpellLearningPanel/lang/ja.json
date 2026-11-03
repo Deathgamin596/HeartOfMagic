@@ -3,7 +3,7 @@
         "language": "日本語",
         "locale": "ja",
         "author": "Claude（機械翻訳）",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "呪文の関連性を分析中...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// エラー: 呪文データがありません。先に呪文をスキャンしてください。",
     "generationMode.noValidJson": "応答に有効なJSONが見つかりませんでした。形式を確認してください。",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] 現在の設定",
     "howto.gainingXp": "[^] XPの獲得",
@@ -311,6 +311,8 @@
     "settings.devDebug.title": "開発者 & デバッグ",
     "settings.devDebug.verboseLogging": "詳細ログ",
     "settings.devDebug.verboseLoggingDesc": "トラブルシューティング用の追加コンソールログ",
+    "settings.autoAdvance.desc": "選択した宛先呪文に向けた自動学習進行を制御します。",
+    "settings.autoAdvance.title": "オートアドバンス設定",
     "settings.earlyLearning.binaryEffectThreshold": "バイナリ効果閾値",
     "settings.earlyLearning.desc": "呪文を早期に低パワーで付与。パワーは練習で上昇。",
     "settings.earlyLearning.enable": "早期学習を有効化",
@@ -544,7 +546,8 @@
     "tree.emptyState.hint": "呪文をスキャンしてツリーを構築して開始。",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "呪文ツリーが読み込まれていません",
-    "tree.instructions": "ドラッグで移動 / スクロールで拡大縮小 / ノードクリックで選択",
+    "tree.panHint": "右クリックドラッグで移動",
+    "tree.instructions": "右クリックドラッグで移動 / スクロールで拡大縮小 / ノードクリックで選択",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilderが見つかりません",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} ノード配置済み",

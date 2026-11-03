@@ -3,7 +3,7 @@
         "language": "French",
         "locale": "fr",
         "author": "Titouling",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Analyse des liens entre les sorts...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// ERREUR : aucune donnée de sort disponible. Veuillez d'abord analyser les sorts.",
     "generationMode.noValidJson": "Impossible de trouver un JSON valide dans la réponse. Veuillez vérifier le format.",
 
-    "header.panelTitle": "CŒUR DE MAGIE",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Paramètres actuels",
     "howto.gainingXp": "[^] Gagner de l'XP",
@@ -311,6 +311,10 @@
     "settings.devDebug.title": "Développeur & Débogage",
     "settings.devDebug.verboseLogging": "Journalisation détaillée",
     "settings.devDebug.verboseLoggingDesc": "Journalisation console supplémentaire pour le dépannage",
+    "settings.autoAdvance.desc": "Contrôler la progression d'apprentissage automatique vers un sort de destination choisi.",
+    "settings.autoAdvance.title": "Paramètres Auto-Advance",
+    "settings.autoAdvance.desc": "Contrôler la progression d'apprentissage automatique vers un sort de destination choisi.",
+    "settings.autoAdvance.title": "Paramètres Auto-Advance",
     "settings.earlyLearning.binaryEffectThreshold": "Seuil d'effet binaire",
     "settings.earlyLearning.desc": "Accorde les sorts plus tôt avec une puissance réduite. La puissance augmente avec la pratique.",
     "settings.earlyLearning.enable": "Activer l'apprentissage anticipé",
@@ -544,7 +548,8 @@
     "tree.emptyState.hint": "Analysez vos sorts et générez un arbre pour commencer.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "Aucun arbre de sorts chargé",
-    "tree.instructions": "Glissez pour déplacer / Molette pour zoomer / Cliquez sur un nœud pour sélectionner",
+    "tree.panHint": "Glisser avec le bouton droit pour déplacer",
+    "tree.instructions": "Glisser avec le bouton droit pour déplacer / Molette pour zoomer / Cliquez sur un nœud pour sélectionner",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder introuvable",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} nœuds placés",

@@ -3,7 +3,7 @@
         "language": "Italiano",
         "locale": "it",
         "author": "Claude (traduzione automatica)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "Analisi delle relazioni tra incantesimi...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// ERRORE: Nessun dato sugli incantesimi disponibile. Esegui prima la scansione.",
     "generationMode.noValidJson": "Impossibile trovare JSON valido nella risposta. Controlla il formato.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] Impostazioni Attuali",
     "howto.gainingXp": "[^] Guadagnare XP",
@@ -544,7 +544,8 @@
     "tree.emptyState.hint": "Scansiona i tuoi incantesimi e costruisci un albero per iniziare.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "Nessun albero degli incantesimi caricato",
-    "tree.instructions": "Trascina per spostare / Scorri per ingrandire / Clicca un nodo per selezionare",
+    "tree.panHint": "Trascina con tasto destro per spostare",
+    "tree.instructions": "Trascina con tasto destro per spostare / Scorri per ingrandire / Clicca un nodo per selezionare",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder non trovato",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} nodi posizionati",

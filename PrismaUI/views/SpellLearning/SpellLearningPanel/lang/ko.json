@@ -3,7 +3,7 @@
         "language": "한국어",
         "locale": "ko",
         "author": "Claude (기계 번역)",
-        "version": "2.0.0"
+        "version": "1.0.0"
     },
 
     "buildProgress.analyzingSpellRelationships": "주문 관계 분석 중...",
@@ -86,8 +86,8 @@
     "generationMode.noSpellDataError": "// 오류: 주문 데이터가 없습니다. 먼저 주문을 스캔하세요.",
     "generationMode.noValidJson": "응답에서 유효한 JSON을 찾을 수 없습니다. 형식을 확인하세요.",
 
-    "header.panelTitle": "HEART OF MAGIC",
-    "header.title": "Heart of Magic",
+    "header.panelTitle": "Heart of Magic - Reworked",
+    "header.title": "Heart of Magic - Reworked",
 
     "howto.currentSettings": "[i] 현재 설정",
     "howto.gainingXp": "[^] 경험치 획득",
@@ -311,6 +311,10 @@
     "settings.devDebug.title": "개발자 & 디버그",
     "settings.devDebug.verboseLogging": "상세 로깅",
     "settings.devDebug.verboseLoggingDesc": "문제 해결을 위한 추가 콘솔 로깅",
+    "settings.autoAdvance.desc": "선택한 대상 주문에 대한 자동 학습 진행을 제어합니다.",
+    "settings.autoAdvance.title": "자동 발전 설정",
+    "settings.autoAdvance.desc": "선택한 대상 주문에 대한 자동 학습 진행을 제어합니다.",
+    "settings.autoAdvance.title": "자동 발전 설정",
     "settings.earlyLearning.binaryEffectThreshold": "이진 효과 임계값",
     "settings.earlyLearning.desc": "감소된 위력으로 주문을 조기에 부여합니다. 위력은 연습으로 증가합니다.",
     "settings.earlyLearning.enable": "조기 학습 활성화",
@@ -544,7 +548,8 @@
     "tree.emptyState.hint": "주문을 스캔하고 트리를 구축하여 시작하세요.",
     "tree.emptyState.icon": "*",
     "tree.emptyState.title": "로드된 주문 트리 없음",
-    "tree.instructions": "드래그하여 이동 / 스크롤하여 확대 / 노드 클릭하여 선택",
+    "tree.panHint": "오른쪽 클릭 드래그로 이동",
+    "tree.instructions": "오른쪽 클릭 드래그로 이동 / 스크롤하여 확대 / 노드 클릭하여 선택",
 
     "treeGrowth.builderNotFound": "SpellTreeBuilder를 찾을 수 없습니다",
     "treeGrowth.nodesPlaced": "{{placed}}/{{total}} 노드 배치됨",

@@ -1842,7 +1842,14 @@ function updateDetailsProgression(node) {
     
     // NORMAL MODE
     if (node.state === 'locked') {
-        // Locked - can't do anything
+        // Locked - show auto-advance target button so user can set this
+        // spell as a destination even though it can't be learned yet.
+        if (settings.autoAdvanceLearning) {
+            autoAdvanceTargetBtn.classList.remove('hidden');
+            autoAdvanceTargetBtn.textContent = isAutoAdvanceTarget
+                ? 'Clearing Target'
+                : 'Set as Auto-Advance Target';
+        }
         return;
     }
     

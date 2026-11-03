@@ -58,7 +58,7 @@ find_package(hwy CONFIG REQUIRED)
 # ============================================================================
 
 set(DIST_DIR "${CMAKE_SOURCE_DIR}/dist")
-set(DIST_VERSION_DIR "${DIST_DIR}/${PROJECT_NAME}_${PROJECT_VERSION}")
+set(DIST_VERSION_DIR "${DIST_DIR}/HeartOfMagic_Reworked_${PROJECT_VERSION}")
 
 add_subdirectory(plugins/spelllearning)
 add_subdirectory(plugins/DummyDEST)
