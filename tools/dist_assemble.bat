@@ -71,7 +71,23 @@ echo [7/7] Cleaning up and creating archive...
 if exist "%DIST_VERSION_DIR%\SKSE\Plugins\SpellLearning.pdb" del /f /q "%DIST_VERSION_DIR%\SKSE\Plugins\SpellLearning.pdb"
 if exist "%DIST_VERSION_DIR%\SKSE\Plugins\SL_BookXP.pdb" del /f /q "%DIST_VERSION_DIR%\SKSE\Plugins\SL_BookXP.pdb"
 if exist "%DIST_VERSION_DIR%\optional\ISLPatch\SKSE\Plugins\DontEatSpellTomes.pdb" del /f /q "%DIST_VERSION_DIR%\optional\ISLPatch\SKSE\Plugins\DontEatSpellTomes.pdb"
+
+REM Remove dev-only files from PrismaUI views
 if exist "%DIST_VERSION_DIR%\launch-dev-harness.bat" del /f /q "%DIST_VERSION_DIR%\launch-dev-harness.bat"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\launch-dev-harness.bat" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\launch-dev-harness.bat"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\dev-harness.html" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\dev-harness.html"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\dev-harness-bridge.js" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\dev-harness-bridge.js"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\dev-harness-toolbar.js" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\dev-harness-toolbar.js"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\browser-test.html" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\browser-test.html"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\test-runner.html" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\test-runner.html"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\wheel-test.html" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\wheel-test.html"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\config-demo.html" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\config-demo.html"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\real-data-sim.html" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\real-data-sim.html"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\tree-preview.html" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\tree-preview.html"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\run-tests.js" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\run-tests.js"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\modules\autoTest.js" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\modules\autoTest.js"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\modules\unificationTest.js" del /f /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\modules\unificationTest.js"
+if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\test-data" rmdir /s /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\test-data"
 
 cd /d "%DIST_DIR%"
 "C:\Program Files\CMake\bin\cmake.exe" -E tar cf "%DIST_ZIP%" --format=zip -- "%~nx2"
