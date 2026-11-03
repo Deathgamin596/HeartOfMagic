@@ -1,0 +1,82 @@
+@echo off
+setlocal
+
+REM dist_assemble.bat - Assembles the release distribution folder
+REM Usage: dist_assemble.bat <BUILD_DIR> <DIST_VERSION_DIR> <DIST_DIR> <CMAKE_SOURCE_DIR> <PAPYRUS_OUTPUT_DIR> <DLL_SPELLLEARNING> <DLL_SL_BOOKXP> <DLL_DONT_EAT>
+
+set "BUILD_DIR=%~1"
+set "DIST_VERSION_DIR=%~2"
+set "DIST_DIR=%~3"
+set "CMAKE_SOURCE_DIR=%~4"
+set "PAPYRUS_OUTPUT_DIR=%~5"
+set "DLL_SPELLLEARNING=%~6"
+set "DLL_SL_BOOKXP=%~7"
+set "DLL_DONT_EAT=%~8"
+
+REM Convert forward slashes to backslashes for Windows shell compatibility
+set "BUILD_DIR=%BUILD_DIR:/=\%"
+set "DIST_VERSION_DIR=%DIST_VERSION_DIR:/=\%"
+set "DIST_DIR=%DIST_DIR:/=\%"
+set "CMAKE_SOURCE_DIR=%CMAKE_SOURCE_DIR:/=\%"
+set "PAPYRUS_OUTPUT_DIR=%PAPYRUS_OUTPUT_DIR:/=\%"
+set "DLL_SPELLLEARNING=%DLL_SPELLLEARNING:/=\%"
+set "DLL_SL_BOOKXP=%DLL_SL_BOOKXP:/=\%"
+set "DLL_DONT_EAT=%DLL_DONT_EAT:/=\%"
+
+set "DIST_ZIP=%DIST_DIR%\%~nx2.zip"
+
+echo ============================================
+echo Assembling release distribution
+echo   Output: %DIST_VERSION_DIR%
+echo   Archive: %DIST_ZIP%
+echo ============================================
+
+REM 1. Clean and create directory structure
+echo [1/7] Creating directory structure...
+if exist "%DIST_VERSION_DIR%" rmdir /s /q "%DIST_VERSION_DIR%"
+if not exist "%DIST_VERSION_DIR%\fomod" mkdir "%DIST_VERSION_DIR%\fomod"
+if not exist "%DIST_VERSION_DIR%\SKSE\Plugins" mkdir "%DIST_VERSION_DIR%\SKSE\Plugins"
+if not exist "%DIST_VERSION_DIR%\Scripts\Source" mkdir "%DIST_VERSION_DIR%\Scripts\Source"
+if not exist "%DIST_VERSION_DIR%\optional\ISLPatch\SKSE\Plugins" mkdir "%DIST_VERSION_DIR%\optional\ISLPatch\SKSE\Plugins"
+if not exist "%DIST_VERSION_DIR%\optional\ISLPatch\Scripts\Source" mkdir "%DIST_VERSION_DIR%\optional\ISLPatch\Scripts\Source"
+
+REM 2. Copy DLLs
+echo [2/7] Copying DLLs...
+copy /y "%DLL_SPELLLEARNING%" "%DIST_VERSION_DIR%\SKSE\Plugins\"
+copy /y "%DLL_SL_BOOKXP%" "%DIST_VERSION_DIR%\SKSE\Plugins\"
+copy /y "%DLL_DONT_EAT%" "%DIST_VERSION_DIR%\optional\ISLPatch\SKSE\Plugins\"
+
+REM 3. Copy fomod files
+echo [3/7] Copying fomod files...
+copy /y "%CMAKE_SOURCE_DIR%\fomod\info.xml" "%DIST_VERSION_DIR%\fomod\"
+copy /y "%CMAKE_SOURCE_DIR%\fomod\ModuleConfig.xml" "%DIST_VERSION_DIR%\fomod\"
+
+REM 4. Copy SKSE runtime data
+echo [4/7] Copying SKSE runtime data...
+xcopy /e /i /y /q "%CMAKE_SOURCE_DIR%\SKSE\Plugins\SpellLearning" "%DIST_VERSION_DIR%\SKSE\Plugins\SpellLearning"
+
+REM 5. Copy PrismaUI views
+echo [5/7] Copying PrismaUI views...
+xcopy /e /i /y /q "%CMAKE_SOURCE_DIR%\PrismaUI\views" "%DIST_VERSION_DIR%\PrismaUI\views"
+
+REM 6. Copy Papyrus scripts
+echo [6/7] Copying Papyrus scripts...
+if exist "%CMAKE_SOURCE_DIR%\Scripts\Source\*.psc" copy /y "%CMAKE_SOURCE_DIR%\Scripts\Source\*.psc" "%DIST_VERSION_DIR%\Scripts\Source\"
+if exist "%PAPYRUS_OUTPUT_DIR%\*.pex" copy /y "%PAPYRUS_OUTPUT_DIR%\*.pex" "%DIST_VERSION_DIR%\Scripts\"
+if exist "%CMAKE_SOURCE_DIR%\Scripts\Source\*.psc" copy /y "%CMAKE_SOURCE_DIR%\Scripts\Source\*.psc" "%DIST_VERSION_DIR%\optional\ISLPatch\Scripts\Source\"
+if exist "%PAPYRUS_OUTPUT_DIR%\*.pex" copy /y "%PAPYRUS_OUTPUT_DIR%\*.pex" "%DIST_VERSION_DIR%\optional\ISLPatch\Scripts\"
+
+REM 7. Exclude unnecessary files and create zip
+echo [7/7] Cleaning up and creating archive...
+if exist "%DIST_VERSION_DIR%\SKSE\Plugins\SpellLearning.pdb" del /f /q "%DIST_VERSION_DIR%\SKSE\Plugins\SpellLearning.pdb"
+if exist "%DIST_VERSION_DIR%\SKSE\Plugins\SL_BookXP.pdb" del /f /q "%DIST_VERSION_DIR%\SKSE\Plugins\SL_BookXP.pdb"
+if exist "%DIST_VERSION_DIR%\optional\ISLPatch\SKSE\Plugins\DontEatSpellTomes.pdb" del /f /q "%DIST_VERSION_DIR%\optional\ISLPatch\SKSE\Plugins\DontEatSpellTomes.pdb"
+if exist "%DIST_VERSION_DIR%\launch-dev-harness.bat" del /f /q "%DIST_VERSION_DIR%\launch-dev-harness.bat"
+
+cd /d "%DIST_DIR%"
+"C:\Program Files\CMake\bin\cmake.exe" -E tar cf "%DIST_ZIP%" --format=zip -- "%~nx2"
+
+echo ============================================
+echo Distribution assembly complete.
+echo ============================================
+endlocal

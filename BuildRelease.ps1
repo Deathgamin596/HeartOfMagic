@@ -5,12 +5,12 @@ param(
     [string]$Version = "",
     [switch]$NoVersionPrompt
 )
-$vsDevShellPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
+$vsDevShellPath = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
 # Load in template default variables
-. .\Build_Config_Template.ps1
+. (Join-Path $PSScriptRoot "Build_Config_Template.ps1")
 # Load in local variable overrides
-if (Test-Path .\Build_Config_Local.ps1) {
-    . .\Build_Config_Local.ps1
+if (Test-Path (Join-Path $PSScriptRoot "Build_Config_Local.ps1")) {
+    . (Join-Path $PSScriptRoot "Build_Config_Local.ps1")
 }
 
 # =============================================================================
@@ -117,15 +117,16 @@ if (-not (Test-Path $vsDevShellPath)) {
 }
 # Save current directory, launch VS dev shell, and return to original directory
 $currentDirectory = $PWD.Path
-& $vsDevShellPath -Arch amd64; Set-Location -Path "${currentDirectory}"
+& $vsDevShellPath; Set-Location -Path "${currentDirectory}"
 
 
 # Build cmake configure arguments
-$cmakeArgs = @("-S", ".", "--preset=$preset", "-DCMAKE_COMPILE_JOBS=$threads", "-Wno-dev")
+$cmakeArgs = @("-S", $PSScriptRoot, "--preset=$preset", "-DCMAKE_COMPILE_JOBS=$threads", "-Wno-dev")
 if ($fresh) {
     $cmakeArgs += "--fresh"
 }
 
+Set-Location -Path $PSScriptRoot
 & cmake $cmakeArgs
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
