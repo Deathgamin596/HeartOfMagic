@@ -64,6 +64,18 @@ bool UIManager::Initialize()
 
     logger::info("UIManager: Panel view created");
 
+    // =========================================================================
+    // Create Persistent HUD Overlay View (never hidden by HidePanel)
+    // =========================================================================
+    m_hudView = m_prismaUI->CreateView("SpellLearning/SpellLearningPanel/hud.html", OnHUDDomReady);
+    if (!m_prismaUI->IsValid(m_hudView)) {
+        logger::error("UIManager: Failed to create HUD view");
+    } else {
+        // HUD view stays on top of the panel view
+        m_prismaUI->SetOrder(m_hudView, 100);
+        logger::info("UIManager: HUD view created");
+    }
+
     // Register JS callbacks - Scanner tab
     m_prismaUI->RegisterJSListener(m_view, "ScanSpells", OnScanSpells);
     m_prismaUI->RegisterJSListener(m_view, "SaveOutput", OnSaveOutput);
@@ -82,6 +94,7 @@ bool UIManager::Initialize()
     m_prismaUI->RegisterJSListener(m_view, "ClearLearningTarget", OnClearLearningTarget);
     m_prismaUI->RegisterJSListener(m_view, "UnlockSpell", OnUnlockSpell);
     m_prismaUI->RegisterJSListener(m_view, "GetProgress", OnGetProgress);
+    m_prismaUI->RegisterJSListener(m_view, "GetHUDProgress", OnGetHUDProgress);
     m_prismaUI->RegisterJSListener(m_view, "CheatUnlockSpell", OnCheatUnlockSpell);
     m_prismaUI->RegisterJSListener(m_view, "RelockSpell", OnRelockSpell);
     m_prismaUI->RegisterJSListener(m_view, "GetPlayerKnownSpells", OnGetPlayerKnownSpells);
@@ -176,7 +189,18 @@ void UIManager::ShowPanel()
     logger::info("UIManager: Showing Panel (pauseGame={})", m_pauseGameOnFocus);
 
     m_prismaUI->Show(m_view);
+    // Panel view stays behind HUD overlay
+    m_prismaUI->SetOrder(m_view, 0);
+    // Focus panel view so it receives input; HUD view stays unfocused so it never
+    // hijacks mouse/keyboard input (its pointer-events:none overlay lets clicks pass through).
     m_prismaUI->Focus(m_view, m_pauseGameOnFocus);
+    // HUD overlay always on top
+    if (m_prismaUI->IsValid(m_hudView)) {
+        m_prismaUI->Show(m_hudView);
+        m_prismaUI->SetOrder(m_hudView, 1000);
+        // Tell HUD view panel is now visible - drag allowed in edit mode only when panel open
+        m_prismaUI->InteropCall(m_hudView, "onPanelVisibilityChanged", "true");
+    }
     m_isPanelVisible = true;
     m_hasFocus = true;
 
@@ -203,9 +227,19 @@ void UIManager::HidePanel()
     logger::info("UIManager: Hiding Panel");
 
     m_prismaUI->Unfocus(m_view);
-    m_prismaUI->Hide(m_view);
+    if (m_prismaUI->IsValid(m_hudView)) {
+        m_prismaUI->Unfocus(m_hudView);     // Ensure HUD view never retains input focus
+    }
+    m_prismaUI->Hide(m_view);           // Hide main panel view
+    // NOTE: m_hudView is intentionally NOT hidden - HUD overlay persists
     m_isPanelVisible = false;
     m_hasFocus = false;
+
+    // Tell HUD view panel is now hidden - drag disabled, no mouse hijack
+    if (m_prismaUI->IsValid(m_hudView)) {
+        m_prismaUI->Show(m_hudView);
+        m_prismaUI->InteropCall(m_hudView, "onPanelVisibilityChanged", "false");
+    }
 
     // Notify JS
     m_prismaUI->InteropCall(m_view, "onPanelHiding", "");
@@ -267,6 +301,51 @@ void UIManager::OnDomReady(PrismaView view)
 
     // Notify JS that we're ready
     instance->m_prismaUI->InteropCall(view, "onPrismaReady", "");
+}
+
+void UIManager::OnHUDDomReady(PrismaView view)
+{
+    logger::info("UIManager: HUD view DOM ready");
+
+    auto* instance = GetSingleton();
+    if (!instance || !instance->m_prismaUI) {
+        return;
+    }
+
+    // Inject callCpp bridge wrapper into HUD view
+    const char* setupScript = R"(
+        window.callCpp = function(functionName, argument) {
+            if (window.skyrimBridge && typeof window.skyrimBridge[functionName] === 'function') {
+                window.skyrimBridge[functionName](argument);
+                return true;
+            }
+            if (typeof window[functionName] === 'function') {
+                window[functionName](argument);
+                return true;
+            }
+            console.warn('[SpellLearning HUD] callCpp: function not found:', functionName);
+            return false;
+        };
+
+        window._cppBridgeReady = true;
+        console.log('[SpellLearning HUD] C++ bridge ready');
+    )";
+
+    instance->m_prismaUI->Invoke(view, setupScript, nullptr);
+
+    // Notify HUD view that we're ready
+    instance->m_prismaUI->InteropCall(view, "onPrismaReady", "");
+
+    // Send current panel visibility so HUD knows if drag is allowed
+    instance->m_prismaUI->InteropCall(view, "onPanelVisibilityChanged", instance->m_isPanelVisible ? "true" : "false");
+
+    // Re-send cached unified config to HUD view (OnLoadUnifiedConfig may have fired
+    // before this view's JS was ready, dropping the onUnifiedConfigLoaded call).
+    // This ensures HUD position/scale/opacity/enabled persist across game restarts.
+    if (!instance->m_lastUnifiedConfig.empty()) {
+        instance->m_prismaUI->InteropCall(view, "onUnifiedConfigLoaded", instance->m_lastUnifiedConfig.c_str());
+        logger::info("UIManager: Re-sent unified config to HUD view on DOM ready");
+    }
 }
 
 // =============================================================================

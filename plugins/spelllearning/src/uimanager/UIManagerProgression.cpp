@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "uimanager/UIManager.h"
+#include "HUDProgressSource.h"
 #include "ProgressionManager.h"
 #include "SpellEffectivenessHook.h"
 #include "ThreadUtils.h"
@@ -78,6 +79,10 @@ void UIManager::OnSetLearningTarget(const char* argument)
             // Update spell state to "learning" so canvas renderer shows learning visuals
             instance->UpdateSpellState(formIdStr, "learning");
 
+            // Push immediate HUD progress update so the overlay reflects the new target
+            auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+            if (hud) hud->PushHUDProgress();
+
         } catch (const std::exception& e) {
             logger::error("UIManager: SetLearningTarget exception: {}", e.what());
         }
@@ -114,6 +119,10 @@ void UIManager::OnClearLearningTarget(const char* argument)
                     ss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << targetId;
                     instance->UpdateSpellState(ss.str(), "available");
                     logger::info("UIManager: Cleared learning target {} - set to available", ss.str());
+
+                    // Push immediate HUD progress update so the overlay reflects the cleared target
+                    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+                    if (hud) hud->PushHUDProgress();
                 }
             }
         } catch (const std::exception& e) {
@@ -172,6 +181,49 @@ void UIManager::OnGetProgress([[maybe_unused]] const char* argument)
 
         std::string progressJson = ProgressionManager::GetSingleton()->GetProgressJSON();
         instance->SendProgressData(progressJson);
+    });
+}
+
+void UIManager::OnGetHUDProgress([[maybe_unused]] const char* argument)
+{
+    logger::info("UIManager: GetHUDProgress requested");
+
+    AddTaskToGameThread("GetHUDProgress", []() {
+        auto* instance = GetSingleton();
+        if (!instance || !instance->m_prismaUI) return;
+
+        json result = json::object();
+        json schools = json::array();
+
+        const std::vector<std::string> schoolNames = {
+            "Destruction", "Restoration", "Alteration", "Conjuration", "Illusion"
+        };
+
+        for (const auto& school : schoolNames) {
+            RE::FormID targetId = ProgressionManager::GetSingleton()->GetLearningTarget(school);
+            if (targetId == 0) continue;
+
+            auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(targetId);
+            if (!spell) continue;
+
+            auto progress = ProgressionManager::GetSingleton()->GetProgress(targetId);
+
+            json entry;
+            entry["school"] = school;
+            entry["formId"] = std::format("0x{:08X}", targetId);
+            entry["name"] = spell->GetName();
+            entry["progressPercent"] = progress.progressPercent;
+            entry["currentXP"] = progress.GetCurrentXP();
+            entry["requiredXP"] = progress.requiredXP;
+            entry["unlocked"] = progress.unlocked;
+            entry["ready"] = !progress.unlocked && progress.progressPercent >= 1.0f;
+
+            schools.push_back(entry);
+        }
+
+        result["schools"] = schools;
+        result["enabled"] = true;
+        instance->SendHUDProgressData(result.dump());
     });
 }
 

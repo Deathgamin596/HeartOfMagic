@@ -196,6 +196,15 @@ var settings = {
             master: 5
         }
     },
+    // Persistent HUD progress bars (in-game overlay)
+    hudProgress: {
+        enabled: false,
+        showPerSchool: true,
+        position: { x: 50, y: 50 },
+        scale: 100,   // percent (50-200)
+        opacity: 90,  // percent (0-100)
+        editMode: false  // Allow dragging the HUD to reposition it
+    },
     // Spell blacklist (excluded from tree building)
     // Each entry: { formId: '0x...', name: 'Spell Name', school: 'School' }
     spellBlacklist: [],

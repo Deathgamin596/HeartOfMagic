@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "uimanager/UIManager.h"
 #include "ProgressionManager.h"
+#include "HUDProgressSource.h"
 
 // =============================================================================
 // SEND DATA TO SCANNER TAB
@@ -138,34 +139,33 @@ void UIManager::NotifyCopyComplete(bool success)
 
 void UIManager::NotifyProgressUpdate(RE::FormID formId, float currentXP, float requiredXP)
 {
-    if (!m_prismaUI || !m_prismaUI->IsValid(m_view)) {
+    if (!m_prismaUI) {
         logger::warn("UIManager: Cannot notify progress - PrismaUI not valid");
         return;
     }
 
-    // PERFORMANCE: Skip UI updates when panel is not visible
-    // The UI will refresh when it becomes visible anyway
-    if (!m_isPanelVisible) {
-        return;
+    // Send to main panel view only if visible
+    if (m_isPanelVisible && m_prismaUI->IsValid(m_view)) {
+        auto progress = ProgressionManager::GetSingleton()->GetProgress(formId);
+
+        json update;
+        std::stringstream ss;
+        ss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << formId;
+        update["formId"] = ss.str();
+        update["currentXP"] = currentXP;
+        update["requiredXP"] = requiredXP;
+        update["progress"] = requiredXP > 0 ? (currentXP / requiredXP) : 0.0f;
+        update["ready"] = currentXP >= requiredXP;
+        update["unlocked"] = progress.unlocked;
+
+        logger::trace("UIManager: Sending progress update to UI - formId: {}, XP: {:.1f}/{:.1f}, unlocked: {}",
+            ss.str(), currentXP, requiredXP, progress.unlocked);
+        m_prismaUI->InteropCall(m_view, "onProgressUpdate", update.dump().c_str());
     }
 
-    // Get the full progress info to include unlocked status
-    auto progress = ProgressionManager::GetSingleton()->GetProgress(formId);
-
-    json update;
-    std::stringstream ss;
-    ss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << formId;
-    update["formId"] = ss.str();
-    update["currentXP"] = currentXP;
-    update["requiredXP"] = requiredXP;
-    update["progress"] = requiredXP > 0 ? (currentXP / requiredXP) : 0.0f;
-    update["ready"] = currentXP >= requiredXP;
-    update["unlocked"] = progress.unlocked;  // Include unlocked status
-
-    // PERFORMANCE: Use trace for frequent progress updates
-    logger::trace("UIManager: Sending progress update to UI - formId: {}, XP: {:.1f}/{:.1f}, unlocked: {}",
-        ss.str(), currentXP, requiredXP, progress.unlocked);
-    m_prismaUI->InteropCall(m_view, "onProgressUpdate", update.dump().c_str());
+    // Always push to persistent HUD overlay (updates even when panel is closed)
+    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+    if (hud) hud->PushHUDProgress();
 }
 
 void UIManager::NotifyProgressUpdate(const std::string& formIdStr)
@@ -185,37 +185,46 @@ void UIManager::NotifyProgressUpdate(const std::string& formIdStr)
 
 void UIManager::NotifySpellReady(RE::FormID formId)
 {
-    if (!m_prismaUI || !m_prismaUI->IsValid(m_view)) {
+    if (!m_prismaUI) {
         return;
     }
 
-    // PERFORMANCE: Skip UI updates when panel is not visible
-    if (!m_isPanelVisible) {
-        return;
+    // Send to main panel view only if visible
+    if (m_isPanelVisible && m_prismaUI->IsValid(m_view)) {
+        json notify;
+        std::stringstream ss;
+        ss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << formId;
+        notify["formId"] = ss.str();
+        notify["ready"] = true;
+
+        m_prismaUI->InteropCall(m_view, "onSpellReady", notify.dump().c_str());
     }
 
-    json notify;
-    std::stringstream ss;
-    ss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << formId;
-    notify["formId"] = ss.str();
-    notify["ready"] = true;
-
-    m_prismaUI->InteropCall(m_view, "onSpellReady", notify.dump().c_str());
+    // Always push to persistent HUD overlay
+    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+    if (hud) hud->PushHUDProgress();
 }
 
 void UIManager::NotifySpellUnlocked(RE::FormID formId, bool success)
 {
-    if (!m_prismaUI || !m_prismaUI->IsValid(m_view)) {
+    if (!m_prismaUI) {
         return;
     }
 
-    json notify;
-    std::stringstream ss;
-    ss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << formId;
-    notify["formId"] = ss.str();
-    notify["success"] = success;
+    // Send to main panel view only if visible
+    if (m_isPanelVisible && m_prismaUI->IsValid(m_view)) {
+        json notify;
+        std::stringstream ss;
+        ss << "0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << formId;
+        notify["formId"] = ss.str();
+        notify["success"] = success;
 
-    m_prismaUI->InteropCall(m_view, "onSpellUnlocked", notify.dump().c_str());
+        m_prismaUI->InteropCall(m_view, "onSpellUnlocked", notify.dump().c_str());
+    }
+
+    // Always push to persistent HUD overlay
+    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+    if (hud) hud->PushHUDProgress();
 }
 
 void UIManager::NotifyLearningTargetSet(const std::string& school, RE::FormID formId, const std::string& spellName)
@@ -238,6 +247,10 @@ void UIManager::NotifyLearningTargetSet(const std::string& school, RE::FormID fo
 
     // Also update the spell state to "learning" so canvas renderer shows learning visuals
     UpdateSpellState(formIdStr, "learning");
+
+    // Push immediate HUD progress update so the overlay reflects the new target
+    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+    if (hud) hud->PushHUDProgress();
 }
 
 void UIManager::NotifyLearningTargetCleared(RE::FormID formId)
@@ -258,6 +271,10 @@ void UIManager::NotifyLearningTargetCleared(RE::FormID formId)
 
     // Update the spell state back to "available" since it's no longer being learned
     UpdateSpellState(formIdStr, "available");
+
+    // Push immediate HUD progress update so the overlay reflects the cleared target
+    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+    if (hud) hud->PushHUDProgress();
 }
 
 void UIManager::NotifyModdedSourceRegistered(const std::string& sourceId,
@@ -312,4 +329,13 @@ void UIManager::SendProgressData(const std::string& jsonData)
     }
 
     m_prismaUI->InteropCall(m_view, "onProgressData", jsonData.c_str());
+}
+
+void UIManager::SendHUDProgressData(const std::string& jsonData)
+{
+    if (!m_prismaUI || !m_prismaUI->IsValid(m_hudView)) {
+        return;
+    }
+
+    m_prismaUI->InteropCall(m_hudView, "onHUDProgressUpdate", jsonData.c_str());
 }

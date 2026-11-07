@@ -1155,6 +1155,113 @@ function initializePassiveLearningSettings() {
     console.log('[SpellLearning] Passive learning settings initialized');
 }
 
+function initializeHUDProgressSettings() {
+    // HUDProgress lives in m_hudView (hud.html), not in m_view.
+    // Settings changes are saved via autoSaveSettings() → C++ DoSaveUnifiedConfig
+    // → onUnifiedConfigLoaded broadcast → HUDProgress.applySettings() in m_hudView.
+
+    // Enable toggle
+    var enableToggle = document.getElementById('hudProgressToggle');
+    if (enableToggle) {
+        enableToggle.checked = settings.hudProgress.enabled;
+        enableToggle.addEventListener('change', function() {
+            settings.hudProgress.enabled = this.checked;
+            autoSaveSettings();
+            if (window.callCpp) {
+                window.callCpp('GetHUDProgress', '');
+            }
+            console.log('[SpellLearning] HUD progress enabled:', this.checked);
+        });
+    }
+
+    // Edit mode toggle (saved via autoSave, applied in m_hudView)
+    var editToggle = document.getElementById('hudEditModeToggle');
+    if (editToggle) {
+        editToggle.checked = settings.hudProgress.editMode || false;
+        editToggle.addEventListener('change', function() {
+            settings.hudProgress.editMode = this.checked;
+            autoSaveSettings();
+            console.log('[SpellLearning] HUD edit mode:', this.checked);
+        });
+    }
+
+    // Scale slider
+    var scaleSlider = document.getElementById('hudScaleSlider');
+    var scaleValue = document.getElementById('hudScaleValue');
+    if (scaleSlider) {
+        scaleSlider.value = settings.hudProgress.scale;
+        if (scaleValue) scaleValue.textContent = settings.hudProgress.scale + '%';
+        updateSliderFillGlobal(scaleSlider);
+        scaleSlider.addEventListener('input', function() {
+            var val = parseInt(this.value);
+            settings.hudProgress.scale = val;
+            if (scaleValue) scaleValue.textContent = val + '%';
+            updateSliderFillGlobal(this);
+            autoSaveSettings();
+        });
+    }
+
+    // Opacity slider
+    var opacitySlider = document.getElementById('hudOpacitySlider');
+    var opacityValue = document.getElementById('hudOpacityValue');
+    if (opacitySlider) {
+        opacitySlider.value = settings.hudProgress.opacity;
+        if (opacityValue) opacityValue.textContent = settings.hudProgress.opacity + '%';
+        updateSliderFillGlobal(opacitySlider);
+        opacitySlider.addEventListener('input', function() {
+            var val = parseInt(this.value);
+            settings.hudProgress.opacity = val;
+            if (opacityValue) opacityValue.textContent = val + '%';
+            updateSliderFillGlobal(this);
+            autoSaveSettings();
+        });
+    }
+
+    // Position X input
+    var posXInput = document.getElementById('hudPosXInput');
+    if (posXInput) {
+        posXInput.value = settings.hudProgress.position.x;
+        posXInput.addEventListener('change', function() {
+            var val = parseInt(this.value) || 0;
+            settings.hudProgress.position.x = val;
+            autoSaveSettings();
+        });
+    }
+
+    // Position Y input
+    var posYInput = document.getElementById('hudPosYInput');
+    if (posYInput) {
+        posYInput.value = settings.hudProgress.position.y;
+        posYInput.addEventListener('change', function() {
+            var val = parseInt(this.value) || 0;
+            settings.hudProgress.position.y = val;
+            autoSaveSettings();
+        });
+    }
+
+    // Escape key exits HUD edit mode (escape hatch when HUD view has no focus)
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && settings.hudProgress && settings.hudProgress.editMode) {
+            settings.hudProgress.editMode = false;
+            autoSaveSettings();
+            console.log('[SpellLearning] HUD edit mode disabled via Escape');
+        }
+    });
+
+    // Refresh button
+    var refreshBtn = document.getElementById('hudRefreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (window.callCpp) {
+                window.callCpp('GetHUDProgress', '');
+            }
+            console.log('[SpellLearning] HUD progress refresh requested');
+        });
+    }
+
+    console.log('[SpellLearning] HUD progress settings initialized');
+}
+
 function updatePassiveLearningVisibility() {
     var controls = document.querySelector('.passive-learning-controls');
     if (!controls) return;

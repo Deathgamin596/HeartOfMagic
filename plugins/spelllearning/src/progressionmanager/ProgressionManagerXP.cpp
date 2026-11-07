@@ -307,17 +307,19 @@ void ProgressionManager::AddXP(RE::FormID targetSpellId, float amount)
                 static_cast<int>(effectiveness * 100));
 
             // Show notification for power step increase
-            auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(targetSpellId);
-            if (spell) {
-                char notification[256];
-                snprintf(notification, sizeof(notification), "%s power increased to %d%%",
-                    spell->GetName(), static_cast<int>(effectiveness * 100));
-                RE::SendHUDMessage::ShowHUDMessage(notification);
+            if (m_xpSettings.spellCastXPNotificationsEnabled) {
+                auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(targetSpellId);
+                if (spell) {
+                    char notification[256];
+                    snprintf(notification, sizeof(notification), "%s power increased to %d%%",
+                        spell->GetName(), static_cast<int>(effectiveness * 100));
+                    RE::SendHUDMessage::ShowHUDMessage(notification);
 
-                // Fire ModEvent: SpellLearning_ProgressMilestone
-                SendModEvent("SpellLearning_ProgressMilestone",
-                    effectivenessHook->GetPowerStepLabel(currentStep),
-                    effectiveness * 100.0f, spell);
+                    // Fire ModEvent: SpellLearning_ProgressMilestone
+                    SendModEvent("SpellLearning_ProgressMilestone",
+                        effectivenessHook->GetPowerStepLabel(currentStep),
+                        effectiveness * 100.0f, spell);
+                }
             }
         }
 
@@ -330,19 +332,21 @@ void ProgressionManager::AddXP(RE::FormID targetSpellId, float amount)
             logger::info("ProgressionManager: Spell {:08X} MASTERED - nerf removed!", targetSpellId);
 
             // Show mastery notification
-            auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(targetSpellId);
-            if (spell) {
-                char notification[256];
-                snprintf(notification, sizeof(notification), "%s MASTERED! Full power unlocked.",
-                    spell->GetName());
-                RE::SendHUDMessage::ShowHUDMessage(notification);
+            if (m_xpSettings.spellCastXPNotificationsEnabled) {
+                auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(targetSpellId);
+                if (spell) {
+                    char notification[256];
+                    snprintf(notification, sizeof(notification), "%s MASTERED! Full power unlocked.",
+                        spell->GetName());
+                    RE::SendHUDMessage::ShowHUDMessage(notification);
 
-                // Fire ModEvent: SpellLearning_SpellMastered
-                auto* costliest = spell->GetCostliestEffectItem();
-                std::string schoolStr = (costliest && costliest->baseEffect)
-                    ? SpellScanner::GetSchoolName(costliest->baseEffect->GetMagickSkill())
-                    : "Unknown";
-                SendModEvent("SpellLearning_SpellMastered", schoolStr, 0.0f, spell);
+                    // Fire ModEvent: SpellLearning_SpellMastered
+                    auto* costliest = spell->GetCostliestEffectItem();
+                    std::string schoolStr = (costliest && costliest->baseEffect)
+                        ? SpellScanner::GetSchoolName(costliest->baseEffect->GetMagickSkill())
+                        : "Unknown";
+                    SendModEvent("SpellLearning_SpellMastered", schoolStr, 0.0f, spell);
+                }
             }
 
             // Clear learning target for this school (spell is mastered)

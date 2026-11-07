@@ -306,6 +306,8 @@ window._i18nPreload = {
     "settings.earlyLearning.title": "Early Spell Learning",
     "settings.earlyLearning.unlockThreshold": "Unlock Threshold",
     "settings.earlyLearning.weakenedAlerts": "Weakened Spell Alerts",
+    "settings.notifications.spellCastXPNotifications": "Spell Cast XP Notifications",
+    "settings.notifications.spellCastXPNotificationsDesc": "Show XP/power notifications when casting spells you are learning",
     "settings.hotkey.change": "Change",
     "settings.hotkey.panelToggleKey": "Panel Toggle Key",
     "settings.hotkey.pauseGameOnOpen": "Pause Game on Open",

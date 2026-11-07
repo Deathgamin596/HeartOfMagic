@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spell Learning HUD</title>
+    <link rel="stylesheet" href="styles-skyrim.css">
+</head>
+<body>
+    <div id="hudProgressOverlay" class="hud-progress-overlay" style="display:block; pointer-events:none;">
+        <div class="hud-progress-title">Spell Learning Progress</div>
+        <div class="hud-progress-container"></div>
+    </div>
+
+    <script src="modules/state.js"></script>
+    <script src="modules/hudProgress.js"></script>
+    <script>
+        // Initialize HUD overlay on DOM ready
+        if (typeof HUDProgress !== 'undefined') {
+            HUDProgress.init();
+        }
+
+        // Handle unified config from C++ (contains hudProgress settings)
+        window.onUnifiedConfigLoaded = function(configStr) {
+            try {
+                var config = typeof configStr === 'string' ? JSON.parse(configStr) : configStr;
+                if (config && config.hudProgress) {
+                    Object.assign(settings.hudProgress, config.hudProgress);
+                    if (typeof HUDProgress !== 'undefined') {
+                        HUDProgress.applySettings();
+                    }
+                    if (settings.hudProgress.enabled && window.callCpp) {
+                        window.callCpp('GetHUDProgress', '');
+                    }
+                }
+            } catch (e) {
+                console.error('[HUD] Failed to apply unified config:', e);
+            }
+        };
+    </script>
+</body>
+</html>

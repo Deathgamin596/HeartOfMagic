@@ -115,9 +115,12 @@ if (-not (Test-Path $vsDevShellPath)) {
     Write-Error "Visual Studio Dev Shell script not found at '$vsDevShellPath'. Please check the path."
     exit 1
 }
-# Save current directory, launch VS dev shell, and return to original directory
+# Save current directory, launch VS dev shell, capture its environment, and return
 $currentDirectory = $PWD.Path
-& $vsDevShellPath; Set-Location -Path "${currentDirectory}"
+$vsEnv = cmd /c "`"$vsDevShellPath`" && set" | ForEach-Object {
+    if ($_ -match '^([^=]+)=(.*)$') { [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') }
+}
+Set-Location -Path $currentDirectory
 
 
 # Build cmake configure arguments

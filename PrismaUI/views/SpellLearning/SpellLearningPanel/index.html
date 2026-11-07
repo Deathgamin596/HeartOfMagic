@@ -1197,9 +1197,94 @@
                                     <input type="number" id="passiveMaxMaster" class="tier-xp-input" value="5" min="0" max="100">
                                     <span class="tier-xp-unit">%</span>
                                 </div>
+                                </div>
+                            </div>
+                        
+                        <!-- Persistent HUD Progress -->
+                        <div class="settings-subsection hud-progress-section">
+                            <span class="subsection-title" data-i18n="settings.hud.title">HUD Progress Bars</span>
+                        </div>
+
+                        <div class="hud-progress-controls">
+                            <div class="setting-row-inline">
+                                <div class="setting-info">
+                                    <span class="setting-label" data-i18n="settings.hud.enabled">Persistent HUD Progress</span>
+                                    <span class="setting-desc" data-i18n="settings.hud.enabledDesc">Show XP progress bars for learning targets on screen during gameplay</span>
+                                </div>
+                                <div class="inline-controls">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="hudProgressToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="setting-row-inline" style="margin-top: 6px;">
+                                <div class="setting-info">
+                                    <span class="setting-label">Edit Mode</span>
+                                    <span class="setting-desc">Allow dragging the HUD to reposition it</span>
+                                </div>
+                                <div class="inline-controls">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="hudEditModeToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="setting-row slider-row">
+                                <div class="setting-info">
+                                    <span class="setting-label">Scale</span>
+                                    <span class="setting-desc">HUD size percentage</span>
+                                </div>
+                                <div class="slider-container">
+                                    <input type="range" id="hudScaleSlider" min="50" max="200" value="100" step="10" class="setting-slider">
+                                    <span id="hudScaleValue" class="slider-value">100%</span>
+                                </div>
+                            </div>
+
+                            <div class="setting-row slider-row">
+                                <div class="setting-info">
+                                    <span class="setting-label">Opacity</span>
+                                    <span class="setting-desc">HUD transparency</span>
+                                </div>
+                                <div class="slider-container">
+                                    <input type="range" id="hudOpacitySlider" min="0" max="100" value="90" step="5" class="setting-slider">
+                                    <span id="hudOpacityValue" class="slider-value">90%</span>
+                                </div>
+                            </div>
+
+                            <div class="setting-row-inline" style="margin-top: 6px;">
+                                <div class="setting-info">
+                                    <span class="setting-label">Position X</span>
+                                    <span class="setting-desc">HUD horizontal screen position (px)</span>
+                                </div>
+                                <div class="inline-controls">
+                                    <input type="number" id="hudPosXInput" min="0" max="9999" value="50" step="10" class="setting-input">
+                                </div>
+                            </div>
+
+                            <div class="setting-row-inline" style="margin-top: 6px;">
+                                <div class="setting-info">
+                                    <span class="setting-label">Position Y</span>
+                                    <span class="setting-desc">HUD vertical screen position (px)</span>
+                                </div>
+                                <div class="inline-controls">
+                                    <input type="number" id="hudPosYInput" min="0" max="9999" value="50" step="10" class="setting-input">
+                                </div>
+                            </div>
+
+                            <div class="setting-row-inline" style="margin-top: 6px;">
+                                <div class="setting-info">
+                                    <span class="setting-label">Request Update</span>
+                                    <span class="setting-desc">Force refresh progress data from game</span>
+                                </div>
+                                <div class="inline-controls">
+                                    <button type="button" id="hudRefreshBtn" class="btn btn-small">Refresh</button>
+                                </div>
                             </div>
                         </div>
-                        
+
                         <!-- Progressive Reveal Thresholds -->
                         <div class="settings-subsection">
                             <span class="subsection-title" data-i18n="settings.progression.detailRevealThresholds">Detail Reveal Thresholds</span>
@@ -1358,6 +1443,20 @@
                                     <input type="range" id="notificationIntervalSlider" min="5" max="60" value="10" class="setting-slider">
                                     <span class="slider-value" id="notificationIntervalValue">10s</span>
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Spell Cast XP Notifications -->
+                        <div class="setting-row-inline">
+                            <div class="setting-info">
+                                <span class="setting-label" data-i18n="settings.notifications.spellCastXPNotifications">Spell Cast XP Notifications</span>
+                                <span class="setting-desc" data-i18n="settings.notifications.spellCastXPNotificationsDesc">Show XP/power notifications when casting spells you are learning</span>
+                            </div>
+                            <div class="inline-controls">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="spellCastXPNotificationsToggle" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
                             </div>
                         </div>
                         
@@ -1994,5 +2093,6 @@
 
     <!-- 9. Main Entry Point (initialization, module verification) -->
     <script src="modules/main.js"></script>
+
 </body>
 </html>

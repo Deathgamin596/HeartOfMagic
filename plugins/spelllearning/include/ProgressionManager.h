@@ -158,6 +158,8 @@ public:
         float xpAdept = 400.0f;
         float xpExpert = 800.0f;
         float xpMaster = 1500.0f;
+        // Notification settings
+        bool spellCastXPNotificationsEnabled = true;  // Show XP/power notifications when casting learning spells
         // Modded XP sources (registered by external mods)
         std::unordered_map<std::string, ModdedSourceConfig> moddedSources;
     };

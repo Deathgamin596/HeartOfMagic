@@ -60,6 +60,7 @@ public:
     void NotifyMainMenuLoaded();      // Called on kDataLoaded - reset tree states
     void NotifySaveGameLoaded();      // Called on kPostLoadGame - refresh player data
     void SendProgressData(const std::string& jsonData);
+    void SendHUDProgressData(const std::string& jsonData);
     
     // Focus management for main menu → game transition
     void EnsureFocusReleased();       // Call on game load to fix input lock
@@ -87,6 +88,7 @@ private:
 
     // PrismaUI callbacks - All on single view
     static void OnDomReady(PrismaView view);
+    static void OnHUDDomReady(PrismaView view);
     
     // Scanner tab callbacks
     static void OnScanSpells(const char* argument);
@@ -106,6 +108,7 @@ private:
     static void OnClearLearningTarget(const char* argument);
     static void OnUnlockSpell(const char* argument);
     static void OnGetProgress(const char* argument);
+    static void OnGetHUDProgress(const char* argument);
     static void OnCheatUnlockSpell(const char* argument);
     static void OnRelockSpell(const char* argument);
     static void OnSetSpellXP(const char* argument);
@@ -165,6 +168,7 @@ private:
     PRISMA_UI_API::IVPrismaUI1* m_prismaUI = nullptr;
     PRISMA_UI_API::IVPrismaUI2* m_prismaUIv2 = nullptr;
     PrismaView m_view = 0;
+    PrismaView m_hudView = 0;  // Persistent HUD overlay view (never hidden by HidePanel)
     bool m_isPanelVisible = false;
     bool m_isInitialized = false;
     bool m_hasFocus = false;  // Track if we have focus (for main menu → game fix)
@@ -175,6 +179,10 @@ private:
     std::mutex m_configSaveMutex;
     std::chrono::steady_clock::time_point m_lastConfigSaveTime{};
     static constexpr int kConfigSaveDebounceMs = 500;  // Ignore saves within 500ms of each other
+
+    // Cached unified config string - re-sent to HUD view when its DOM becomes ready
+    // (OnLoadUnifiedConfig may fire before HUD view JS is initialized, dropping the call)
+    std::string m_lastUnifiedConfig;
 
     // Background computation guards - prevent concurrent builds/scoring
     std::atomic<bool> m_treeBuildInProgress{false};

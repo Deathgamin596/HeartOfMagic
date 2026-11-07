@@ -7,6 +7,7 @@
 #include "XPSource.h"
 #include "SpellCastXPSource.h"
 #include "PassiveLearningSource.h"
+#include "HUDProgressSource.h"
 #include "SpellEffectivenessHook.h"
 #include "SpellTomeHook.h"
 #include "PapyrusAPI.h"
@@ -317,6 +318,7 @@ void OnDataLoaded()
     auto& registry = SpellLearning::XPSourceRegistry::GetSingleton();
     registry.Register<SpellLearning::SpellCastXPSource>();
     registry.Register<SpellLearning::PassiveLearningSource>();
+    registry.Register<SpellLearning::HUDProgressSource>();
     registry.InitializeAll();
     logger::info("XP sources registered: {} total, {} active", 
                  registry.GetAll().size(), registry.GetActive().size());
@@ -335,6 +337,9 @@ void OnNewGame()
     // Reset passive learning timer
     auto* passive = SpellLearning::PassiveLearningSource::GetSingleton();
     if (passive) passive->OnGameLoad();
+
+    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+    if (hud) hud->OnGameLoad();
 }
 
 void OnPostLoadGame()
@@ -350,6 +355,9 @@ void OnPostLoadGame()
     // Reset passive learning timer for loaded save
     auto* passive = SpellLearning::PassiveLearningSource::GetSingleton();
     if (passive) passive->OnGameLoad();
+
+    auto* hud = SpellLearning::HUDProgressSource::GetSingleton();
+    if (hud) hud->OnGameLoad();
 
     // Re-register ISL aliases every save load.
     // OnInit() only fires once per save creation (not on load), so on fresh

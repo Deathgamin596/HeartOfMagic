@@ -55,6 +55,7 @@ add_commonlibsse_plugin(${PROJECT_NAME}
     src/ISLIntegration.cpp
     src/SpellCastXPSource.cpp
     src/PassiveLearningSource.cpp
+    src/HUDProgressSource.cpp
     src/spelleffectiveness/SpellEffectivenessHookCore.cpp
     src/spelleffectiveness/SpellEffectivenessHookDisplay.cpp
     src/spelleffectiveness/SpellEffectivenessHookGrant.cpp

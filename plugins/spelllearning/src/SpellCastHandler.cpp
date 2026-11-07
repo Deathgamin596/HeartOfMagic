@@ -112,7 +112,7 @@ RE::BSEventNotifyControl SpellCastHandler::ProcessEvent(
     // THROTTLED WEAKENED SPELL NOTIFICATION
     // Show "Weakened spell at X% effectiveness" at configurable interval when casting early-learned spells
     // =========================================================================
-    if (m_weakenedNotificationsEnabled) {
+    if (m_spellCastXPNotificationsEnabled && m_weakenedNotificationsEnabled) {
         auto* effectivenessHook = SpellEffectivenessHook::GetSingleton();
         RE::FormID spellFormId = spell->GetFormID();
         

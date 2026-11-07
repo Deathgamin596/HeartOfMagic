@@ -1396,6 +1396,8 @@ window.onPlayerKnownSpells = function(dataStr) {
 };
 
 window.onPrismaReady = function() {
+    if (window._prismaReadyCalled) return;
+    window._prismaReadyCalled = true;
     console.log('[SpellLearning] Prisma connection established');
     updateStatus('Ready to scan spells...');
     setStatusIcon('*');
@@ -1418,6 +1420,22 @@ window.onPrismaReady = function() {
         window.callCpp('LoadSpellTree', '');
     }
 };
+
+// If Prisma bridge was already ready before this script loaded (OnDomReady fired
+// early), run initialization now so the saved tree and config still load.
+if (window._cppBridgeReady && window.callCpp && !window._prismaReadyCalled) {
+    window.onPrismaReady();
+}
+
+// Load the saved spell tree on demand (called by reload/load-saved buttons)
+function loadSavedTree() {
+    if (window.callCpp) {
+        console.log('[SpellLearning] Loading saved spell tree...');
+        window.callCpp('LoadSpellTree', '');
+    } else {
+        console.warn('[SpellLearning] loadSavedTree: callCpp not ready');
+    }
+}
 
 // Track panel visibility state.
 // The panel is created HIDDEN (UIManager::Initialize calls m_prismaUI->Hide(m_view)),
@@ -1455,6 +1473,11 @@ window.onPanelShowing = function() {
         console.log('[SpellLearning] Panel showing - syncing progress from C++');
         window.callCpp('GetProgress', '');
         window.callCpp('GetPlayerKnownSpells', '');
+    }
+
+    // Restore HUD overlay visibility when panel reopens
+    if (typeof HUDProgress !== 'undefined' && settings.hudProgress && settings.hudProgress.enabled) {
+        HUDProgress.applySettings();
     }
 
     // Refresh renderers

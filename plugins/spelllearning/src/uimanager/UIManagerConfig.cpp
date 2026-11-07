@@ -6,6 +6,7 @@
 #include "SpellTomeHook.h"
 #include "SpellCastHandler.h"
 #include "PassiveLearningSource.h"
+#include "HUDProgressSource.h"
 #include "OpenRouterAPI.h"
 #include "ISLIntegration.h"
 #include "ThreadUtils.h"
@@ -91,6 +92,36 @@ static void ApplySettingsFromConfig(const nlohmann::json& config)
             plSettings.enabled, plSettings.scope);
     }
 
+    // HUD Progress settings
+    if (config.contains("hudProgress") && !config["hudProgress"].is_null()) {
+        auto& hpConfig = config["hudProgress"];
+        SpellLearning::HUDProgressSource::Settings hpSettings;
+        hpSettings.enabled = SafeJsonValue<bool>(hpConfig, "enabled", false);
+        hpSettings.posX = SafeJsonValue<int>(hpConfig["position"], "x", 50);
+        hpSettings.posY = SafeJsonValue<int>(hpConfig["position"], "y", 50);
+        hpSettings.scale = SafeJsonValue<int>(hpConfig, "scale", 100);
+        hpSettings.opacity = SafeJsonValue<int>(hpConfig, "opacity", 90);
+        hpSettings.showPerSchool = SafeJsonValue<bool>(hpConfig, "showPerSchool", true);
+        auto* hudSource = SpellLearning::HUDProgressSource::GetSingleton();
+        if (hudSource) {
+            hudSource->SetSettings(hpSettings);
+            logger::info("UIManager: Applied HUD Progress settings - enabled: {}, pos: {},{}",
+                hpSettings.enabled, hpSettings.posX, hpSettings.posY);
+        }
+    }
+
+    // Spell Cast XP Notifications settings
+    if (config.contains("spellCastXPNotifications") && !config["spellCastXPNotifications"].is_null()) {
+        bool spellCastXPEnabled = SafeJsonValue<bool>(config, "spellCastXPNotifications", true);
+        auto& xpSettings = ProgressionManager::GetSingleton()->GetXPSettingsMutable();
+        xpSettings.spellCastXPNotificationsEnabled = spellCastXPEnabled;
+        auto* castHandler = SpellCastHandler::GetSingleton();
+        if (castHandler) {
+            castHandler->SetSpellCastXPNotificationsEnabled(spellCastXPEnabled);
+        }
+        logger::info("UIManager: Applied Spell Cast XP Notifications - enabled: {}", spellCastXPEnabled);
+    }
+
     // Notification settings
     if (config.contains("notifications") && !config["notifications"].is_null()) {
         auto& notifConfig = config["notifications"];
@@ -135,7 +166,7 @@ json GenerateDefaultConfig() {
     return json{
         {"hotkey", "F8"},
         {"hotkeyCode", 66},
-        {"pauseGameOnFocus", true},  // If false, game continues running when UI is open
+        {"pauseGameOnFocus", false}, // If false, game continues running when UI is open
         {"cheatMode", false},
         {"verboseLogging", false},
         // Heart animation settings
@@ -216,7 +247,15 @@ json GenerateDefaultConfig() {
             {"maxTokens", 64000}
         }},
         {"schoolColors", json::object()},
-        {"customProfiles", json::object()}
+        {"customProfiles", json::object()},
+        {"hudProgress", {
+            {"enabled", false},
+            {"showPerSchool", true},
+            {"position", {{"x", 50}, {"y", 50}}},
+            {"scale", 100},
+            {"opacity", 90},
+            {"editMode", false}
+        }}
     };
 }
 
@@ -362,10 +401,16 @@ void UIManager::OnLoadUnifiedConfig([[maybe_unused]] const char* argument)
         }
     }
 
-    // Send to UI
+    // Send to UI (main panel view)
     std::string configStr = unifiedConfig.dump();
     logger::info("UIManager: Sending unified config to UI ({} bytes)", configStr.size());
+    instance->m_lastUnifiedConfig = configStr;
     instance->m_prismaUI->InteropCall(instance->m_view, "onUnifiedConfigLoaded", configStr.c_str());
+
+    // Also send to persistent HUD view so it has saved HUD settings
+    if (instance->m_hudView && instance->m_prismaUI->IsValid(instance->m_hudView)) {
+        instance->m_prismaUI->InteropCall(instance->m_hudView, "onUnifiedConfigLoaded", configStr.c_str());
+    }
 
     // Re-notify all registered external modded XP sources to the UI.
     // Sources registered before PrismaUI was ready had their notifications dropped,
@@ -518,6 +563,44 @@ void UIManager::DoSaveUnifiedConfig(const std::string& configData)
 
         logger::info("UIManager: Unified config saved to {}", path.string());
 
+        // Apply HUD Progress settings from saved config so the C++ poll loop
+        // picks up enabled state changes without requiring a game reload
+        auto* instance = GetSingleton();
+        if (existingConfig.contains("hudProgress") && !existingConfig["hudProgress"].is_null()) {
+            auto& hpConfig = existingConfig["hudProgress"];
+            SpellLearning::HUDProgressSource::Settings hpSettings;
+            hpSettings.enabled = SafeJsonValue<bool>(hpConfig, "enabled", false);
+            hpSettings.posX = SafeJsonValue<int>(hpConfig["position"], "x", 50);
+            hpSettings.posY = SafeJsonValue<int>(hpConfig["position"], "y", 50);
+            hpSettings.scale = SafeJsonValue<int>(hpConfig, "scale", 100);
+            hpSettings.opacity = SafeJsonValue<int>(hpConfig, "opacity", 90);
+            hpSettings.showPerSchool = SafeJsonValue<bool>(hpConfig, "showPerSchool", true);
+            auto* hudSource = SpellLearning::HUDProgressSource::GetSingleton();
+            if (hudSource) {
+                hudSource->SetSettings(hpSettings);
+                logger::info("UIManager: Applied HUD Progress settings from save - enabled: {}",
+                    hpSettings.enabled);
+            }
+
+            // Push immediate HUD progress update so overlay reflects new settings right away
+            if (hpSettings.enabled && instance->m_hudView &&
+                instance->m_prismaUI->IsValid(instance->m_hudView)) {
+                hudSource->PushHUDProgress();
+            }
+        }
+
+        // Apply Spell Cast XP Notifications from saved config so toggle takes effect without reload
+        if (existingConfig.contains("spellCastXPNotifications") && !existingConfig["spellCastXPNotifications"].is_null()) {
+            bool spellCastXPEnabled = SafeJsonValue<bool>(existingConfig, "spellCastXPNotifications", true);
+            auto& mutableXpSettings = ProgressionManager::GetSingleton()->GetXPSettingsMutable();
+            mutableXpSettings.spellCastXPNotificationsEnabled = spellCastXPEnabled;
+            auto* castHandler = SpellCastHandler::GetSingleton();
+            if (castHandler) {
+                castHandler->SetSpellCastXPNotificationsEnabled(spellCastXPEnabled);
+            }
+            logger::info("UIManager: Applied Spell Cast XP Notifications from save - enabled: {}", spellCastXPEnabled);
+        }
+
         // Also update OpenRouter if LLM settings changed
         if (newConfig.contains("llm") && !newConfig["llm"].is_null()) {
             auto& llm = newConfig["llm"];
@@ -534,6 +617,15 @@ void UIManager::DoSaveUnifiedConfig(const std::string& configData)
 
             // Save to OpenRouter's config file too for compatibility
             OpenRouterAPI::SaveConfig();
+        }
+
+        // Broadcast updated config to all views (main panel + persistent HUD view)
+        // so HUD settings (enabled, position, scale, opacity) take effect immediately
+        std::string saveConfigStr = existingConfig.dump();
+        instance->m_lastUnifiedConfig = saveConfigStr;
+        instance->m_prismaUI->InteropCall(instance->m_view, "onUnifiedConfigLoaded", saveConfigStr.c_str());
+        if (instance->m_hudView && instance->m_prismaUI->IsValid(instance->m_hudView)) {
+            instance->m_prismaUI->InteropCall(instance->m_hudView, "onUnifiedConfigLoaded", saveConfigStr.c_str());
         }
 
     } catch (const std::exception& e) {

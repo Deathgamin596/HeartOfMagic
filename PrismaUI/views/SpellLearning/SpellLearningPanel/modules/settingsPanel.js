@@ -543,10 +543,13 @@ function initializeSettings() {
         settings.notifications = {
             weakenedSpellNotifications: true,
             weakenedSpellInterval: 10,
-            autoAdvanceTargetMastered: true
+            autoAdvanceTargetMastered: true,
+            spellCastXPNotifications: true
         };
     } else if (settings.notifications.autoAdvanceTargetMastered === undefined) {
         settings.notifications.autoAdvanceTargetMastered = true;
+    } else if (settings.notifications.spellCastXPNotifications === undefined) {
+        settings.notifications.spellCastXPNotifications = true;
     }
     
     // Weakened spell notifications toggle
@@ -566,6 +569,17 @@ function initializeSettings() {
                 notificationIntervalRow.style.display = this.checked ? 'flex' : 'none';
             }
             console.log('[SpellLearning] Weakened spell notifications:', this.checked);
+            scheduleAutoSave();
+        });
+    }
+
+    // Spell Cast XP Notifications toggle
+    var spellCastXPToggle = document.getElementById('spellCastXPNotificationsToggle');
+    if (spellCastXPToggle) {
+        spellCastXPToggle.checked = settings.notifications.spellCastXPNotifications;
+        spellCastXPToggle.addEventListener('change', function() {
+            settings.notifications.spellCastXPNotifications = this.checked;
+            console.log('[SpellLearning] Spell Cast XP Notifications:', this.checked);
             scheduleAutoSave();
         });
     }
@@ -593,8 +607,8 @@ function initializeSettings() {
     }
     
     // UI Theme selector
-    initializeThemeSelector();
-    
+    try { initializeThemeSelector(); } catch(e) { console.error('[SpellLearning] Theme selector init error:', e); }
+
     // Learning color picker
     var learningColorPicker = document.getElementById('learningColorPicker');
     var learningColorValue = document.getElementById('learningColorValue');
@@ -935,6 +949,9 @@ function initializeSettings() {
     // Passive Learning Settings
     try { initializePassiveLearningSettings(); } catch(e) { console.error('[SpellLearning] Passive learning settings init error:', e); }
 
+    // HUD Progress Settings
+    try { initializeHUDProgressSettings(); } catch(e) { console.error('[SpellLearning] HUD progress settings init error:', e); }
+
     // Settings Presets
     try { if (typeof initializeSettingsPresets === 'function') initializeSettingsPresets(); } catch(e) { console.error('[SpellLearning] Settings presets init error:', e); }
 
@@ -1008,7 +1025,7 @@ function initializeSettings() {
     }
     
     // Heart Animation Settings Popup
-    initializeHeartSettings();
+    try { initializeHeartSettings(); } catch(e) { console.error('[SpellLearning] Heart settings init error:', e); }
     
     // Progression settings - Learning Mode (segmented toggle)
     initSegmentedToggle('learningModeToggle', settings.learningMode, function(value) {
@@ -1297,8 +1314,12 @@ function initializeSettings() {
     var saveSettingsBtn = document.getElementById('saveSettingsBtn');
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener('click', function() {
-            saveSettings();
-            console.log('[SpellLearning] Settings saved');
+            try {
+                saveSettings();
+                console.log('[SpellLearning] Settings saved');
+            } catch (e) {
+                console.error('[SpellLearning] Settings save failed:', e);
+            }
         });
     }
     
@@ -1433,7 +1454,10 @@ function autoSaveSettings() {
 }
 
 function saveUnifiedConfig() {
-    if (!window.callCpp) return;
+    if (!window.callCpp) {
+        console.warn('[SpellLearning] saveUnifiedConfig: callCpp bridge not ready — settings will not be saved. Try opening the panel via hotkey and saving again.');
+        return;
+    }
     
     var unifiedConfig = {
         // Panel settings
@@ -1540,6 +1564,12 @@ function saveUnifiedConfig() {
 
         // Passive learning
         passiveLearning: settings.passiveLearning,
+
+        // HUD progress overlay
+        hudProgress: settings.hudProgress,
+
+        // Spell Cast XP Notifications
+        spellCastXPNotifications: settings.notifications.spellCastXPNotifications,
 
         // Spell tome learning
         spellTomeLearning: settings.spellTomeLearning,
@@ -1937,6 +1967,44 @@ window.onUnifiedConfigLoaded = function(dataStr) {
         var sameTierPreferenceToggle = document.getElementById('sameTierPreferenceToggle');
         if (sameTierPreferenceToggle) sameTierPreferenceToggle.checked = settings.proceduralInjection.sameTierPreference;
         
+        // === HUD Progress Overlay ===
+        if (data.hudProgress && typeof data.hudProgress === 'object') {
+            settings.hudProgress.enabled = data.hudProgress.enabled !== undefined ? data.hudProgress.enabled : settings.hudProgress.enabled;
+            settings.hudProgress.showPerSchool = data.hudProgress.showPerSchool !== undefined ? data.hudProgress.showPerSchool : settings.hudProgress.showPerSchool;
+            settings.hudProgress.scale = data.hudProgress.scale !== undefined ? data.hudProgress.scale : settings.hudProgress.scale;
+            settings.hudProgress.opacity = data.hudProgress.opacity !== undefined ? data.hudProgress.opacity : settings.hudProgress.opacity;
+            settings.hudProgress.editMode = data.hudProgress.editMode !== undefined ? data.hudProgress.editMode : settings.hudProgress.editMode;
+            if (data.hudProgress.position && typeof data.hudProgress.position === 'object') {
+                settings.hudProgress.position.x = data.hudProgress.position.x !== undefined ? data.hudProgress.position.x : settings.hudProgress.position.x;
+                settings.hudProgress.position.y = data.hudProgress.position.y !== undefined ? data.hudProgress.position.y : settings.hudProgress.position.y;
+            }
+            console.log('[SpellLearning] Loaded HUD Progress settings:', JSON.stringify(settings.hudProgress));
+        }
+
+        // Apply HUD settings to UI controls
+        var hudScaleSlider = document.getElementById('hudScaleSlider');
+        var hudScaleValue = document.getElementById('hudScaleValue');
+        if (hudScaleSlider) {
+            hudScaleSlider.value = settings.hudProgress.scale;
+            if (hudScaleValue) hudScaleValue.textContent = settings.hudProgress.scale + '%';
+            updateSliderFillGlobal(hudScaleSlider);
+        }
+        var hudOpacitySlider = document.getElementById('hudOpacitySlider');
+        var hudOpacityValue = document.getElementById('hudOpacityValue');
+        if (hudOpacitySlider) {
+            hudOpacitySlider.value = settings.hudProgress.opacity;
+            if (hudOpacityValue) hudOpacityValue.textContent = settings.hudProgress.opacity + '%';
+            updateSliderFillGlobal(hudOpacitySlider);
+        }
+        var hudPosXInput = document.getElementById('hudPosXInput');
+        if (hudPosXInput) hudPosXInput.value = settings.hudProgress.position.x;
+        var hudPosYInput = document.getElementById('hudPosYInput');
+        if (hudPosYInput) hudPosYInput.value = settings.hudProgress.position.y;
+        var hudEditModeToggle = document.getElementById('hudEditModeToggle');
+        if (hudEditModeToggle) hudEditModeToggle.checked = settings.hudProgress.editMode;
+        var hudProgressToggle = document.getElementById('hudProgressToggle');
+        if (hudProgressToggle) hudProgressToggle.checked = settings.hudProgress.enabled;
+
         // Apply school colors to CSS
         applySchoolColorsToCSS();
         updateSchoolColorPickerUI();

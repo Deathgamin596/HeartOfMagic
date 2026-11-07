@@ -23,6 +23,9 @@ public:
     void SetWeakenedNotificationsEnabled(bool enabled) { m_weakenedNotificationsEnabled = enabled; }
     bool GetWeakenedNotificationsEnabled() const { return m_weakenedNotificationsEnabled; }
 
+    void SetSpellCastXPNotificationsEnabled(bool enabled) { m_spellCastXPNotificationsEnabled = enabled; }
+    bool GetSpellCastXPNotificationsEnabled() const { return m_spellCastXPNotificationsEnabled; }
+
 private:
     SpellCastHandler() = default;
     ~SpellCastHandler() = default;
@@ -34,6 +37,7 @@ private:
     // Configurable notification settings
     float m_notificationIntervalSeconds = 10.0f;  // Default: Show weakened spell notification every 10 seconds
     bool m_weakenedNotificationsEnabled = true;   // Default: enabled
+    bool m_spellCastXPNotificationsEnabled = true; // Default: Show XP/power notifications when casting learning spells
     
     // Throttled notification tracking
     std::chrono::steady_clock::time_point m_lastWeakenedNotifTime;
