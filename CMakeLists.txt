@@ -72,8 +72,22 @@ configure_file(
     @ONLY
 )
 
+# Auto-update version tag in UI HTML files from VERSION file during build
+add_custom_target(update_ui_version
+    COMMAND ${CMAKE_COMMAND} -E echo "Updating UI version tag to v${PROJECT_VERSION}..."
+    COMMAND ${CMAKE_COMMAND} -DSRC_DIR=${CMAKE_SOURCE_DIR} -DVER=${PROJECT_VERSION}
+        -P "${CMAKE_SOURCE_DIR}/tools/update_ui_version.cmake"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Updating UI version tag to v${PROJECT_VERSION}"
+    VERBATIM
+)
+
 # Papyrus script compilation
 include(Papyrus)
 
 # Distribution folder assembly
 include(Distribution)
+
+# Ensure version tag updates before dist assembly (assemble_dist target is
+# created by include(Distribution) above)
+add_dependencies(assemble_dist update_ui_version)

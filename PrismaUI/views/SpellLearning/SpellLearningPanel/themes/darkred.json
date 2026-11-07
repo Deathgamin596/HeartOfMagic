@@ -1,0 +1,8 @@
+{
+    "id": "darkred",
+    "name": "Dark Red",
+    "description": "Black and crimson theme with bold red accents",
+    "cssFile": "../styles-darkred.css",
+    "author": "Heart of Magic",
+    "version": "1.0"
+}

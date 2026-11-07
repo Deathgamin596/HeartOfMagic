@@ -1,0 +1,113 @@
+/* Heart of Magic - Dark Red Theme Styling
+   Black background with bold crimson/red accents
+   ============================================================================= */
+
+:root {
+    /* Panel background - deep black */
+    --panel-bg: rgba(5, 5, 5, 0.97);
+    --panel-bg-solid: #050505;
+    --panel-border: rgba(139, 0, 0, 0.35);
+    
+    /* Text - off-white with red-tinted secondary */
+    --text-primary: #e8e8e8;
+    --text-secondary: #b8b8b8;
+    --text-muted: #6a6a6a;
+    --text-bright: #ffffff;
+    
+    /* Accent - bold crimson red */
+    --accent-gold: #d32f2f;
+    --accent-gold-hover: #ff1744;
+    --accent-blue: #1565c0;
+    --accent-green: #388e3c;
+    --accent-red: #c62828;
+    --accent-purple: #7b1fa2;
+    
+    /* UI Elements - black with red borders */
+    --btn-bg: rgba(139, 0, 0, 0.15);
+    --btn-bg-hover: rgba(139, 0, 0, 0.3);
+    --input-bg: rgba(0, 0, 0, 0.6);
+    --canvas-bg: #000000;
+    --divider: rgba(139, 0, 0, 0.25);
+    
+    /* School colors - bold, saturated */
+    --destruction: #e53935;
+    --restoration: #fdd835;
+    --alteration: #43a047;
+    --conjuration: #8e24aa;
+    --illusion: #29b6f6;
+    
+    /* Node states - dark with red borders */
+    --node-locked-bg: #1a1a1a;
+    --node-locked-border: #4a1a1a;
+    --node-locked-text: #664444;
+    --node-available-bg: #1a1a1a;
+    --node-available-border: #662222;
+    
+    /* Learning color - crimson */
+    --learning-color: #c62828;
+    --node-learning-bg: rgba(198, 40, 40, 0.15);
+    --node-learning-border: #c62828;
+    --node-learning-glow: rgba(198, 40, 40, 0.8);
+    
+    /* Unlocked - solid school fills */
+    --destruction-fill: rgba(180, 50, 50, 0.9);
+    --restoration-fill: rgba(180, 150, 20, 0.9);
+    --alteration-fill: rgba(30, 140, 70, 0.9);
+    --conjuration-fill: rgba(130, 60, 190, 0.9);
+    --illusion-fill: rgba(40, 140, 180, 0.9);
+}
+
+/* Override specific elements for dark red theme */
+.spell-panel {
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 0 20px rgba(139, 0, 0, 0.2);
+}
+
+.panel-title {
+    color: var(--text-bright);
+    text-shadow: 0 0 10px rgba(198, 40, 40, 0.4);
+}
+
+.version-tag {
+    color: var(--accent-red);
+}
+
+.setting-label {
+    color: var(--text-primary);
+}
+
+.setting-desc {
+    color: var(--text-secondary);
+}
+
+/* Sliders - red track */
+.setting-slider {
+    accent-color: var(--accent-red);
+}
+
+/* Buttons */
+.setting-btn, .btn-primary {
+    background: var(--btn-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-primary);
+}
+
+.setting-btn:hover, .btn-primary:hover {
+    background: var(--btn-bg-hover);
+    border-color: var(--accent-red);
+}
+
+/* Toggles */
+.setting-toggle::after {
+    background: var(--accent-red);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar-thumb {
+    background: rgba(139, 0, 0, 0.4);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(198, 40, 40, 0.6);
+}

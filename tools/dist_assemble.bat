@@ -2,7 +2,7 @@
 setlocal
 
 REM dist_assemble.bat - Assembles the release distribution folder
-REM Usage: dist_assemble.bat <BUILD_DIR> <DIST_VERSION_DIR> <DIST_DIR> <CMAKE_SOURCE_DIR> <PAPYRUS_OUTPUT_DIR> <DLL_SPELLLEARNING> <DLL_SL_BOOKXP> <DLL_DONT_EAT>
+REM Usage: dist_assemble.bat <BUILD_DIR> <DIST_VERSION_DIR> <DIST_DIR> <CMAKE_SOURCE_DIR> <PAPYRUS_OUTPUT_DIR> <DLL_SPELLLEARNING> <DLL_SL_BOOKXP> <DLL_DONT_EAT> <CMAKE_COMMAND>
 
 set "BUILD_DIR=%~1"
 set "DIST_VERSION_DIR=%~2"
@@ -12,6 +12,7 @@ set "PAPYRUS_OUTPUT_DIR=%~5"
 set "DLL_SPELLLEARNING=%~6"
 set "DLL_SL_BOOKXP=%~7"
 set "DLL_DONT_EAT=%~8"
+set "CMAKE_EXE=%~9"
 
 REM Convert forward slashes to backslashes for Windows shell compatibility
 set "BUILD_DIR=%BUILD_DIR:/=\%"
@@ -53,11 +54,13 @@ copy /y "%CMAKE_SOURCE_DIR%\fomod\ModuleConfig.xml" "%DIST_VERSION_DIR%\fomod\"
 
 REM 4. Copy SKSE runtime data
 echo [4/7] Copying SKSE runtime data...
-xcopy /e /i /y /q "%CMAKE_SOURCE_DIR%\SKSE\Plugins\SpellLearning" "%DIST_VERSION_DIR%\SKSE\Plugins\SpellLearning"
+if exist "%CMAKE_SOURCE_DIR%\SKSE\Plugins\SpellLearning" (
+    "%CMAKE_EXE%" -E copy_directory "%CMAKE_SOURCE_DIR%\SKSE\Plugins\SpellLearning" "%DIST_VERSION_DIR%\SKSE\Plugins\SpellLearning"
+)
 
 REM 5. Copy PrismaUI views
 echo [5/7] Copying PrismaUI views...
-xcopy /e /i /y /q "%CMAKE_SOURCE_DIR%\PrismaUI\views" "%DIST_VERSION_DIR%\PrismaUI\views"
+"%CMAKE_EXE%" -E copy_directory "%CMAKE_SOURCE_DIR%\PrismaUI\views" "%DIST_VERSION_DIR%\PrismaUI\views"
 
 REM 6. Copy Papyrus scripts
 echo [6/7] Copying Papyrus scripts...
@@ -90,7 +93,7 @@ if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\mod
 if exist "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\test-data" rmdir /s /q "%DIST_VERSION_DIR%\PrismaUI\views\SpellLearning\SpellLearningPanel\test-data"
 
 cd /d "%DIST_DIR%"
-"C:\Program Files\CMake\bin\cmake.exe" -E tar cf "%DIST_ZIP%" --format=zip -- "%~nx2"
+"%CMAKE_EXE%" -E tar cf "%DIST_ZIP%" --format=zip -- "%~nx2"
 
 echo ============================================
 echo Distribution assembly complete.

@@ -45,6 +45,7 @@ add_custom_command(TARGET assemble_dist POST_BUILD
         "$<TARGET_FILE:SpellLearning>"
         "$<TARGET_FILE:SL_BookXP>"
         "$<TARGET_FILE:DontEatSpellTomes>"
+        "${CMAKE_COMMAND}"
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     COMMENT "Running distribution assembly script..."
     VERBATIM
