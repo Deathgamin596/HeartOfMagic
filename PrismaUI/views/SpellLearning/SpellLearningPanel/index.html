@@ -18,7 +18,7 @@
         <div class="panel-header" id="panelHeader">
             <div class="header-left">
                 <span class="panel-title" data-i18n="header.panelTitle">Heart of Magic - Reworked</span>
-                <span class="version-tag">v1.0.4</span>
+                <span class="version-tag">v1.0.6</span>
             </div>
             <div class="header-right">
                 <button class="header-btn header-btn-wide" id="returnToTreeBtn" style="display:none;" title="Return to Spell Tree" data-i18n="tabs.return" data-i18n-title="tabs.returnTitle">Return</button>
@@ -855,6 +855,12 @@
                 <!-- Tree Footer -->
                 <div class="tree-footer">
                     <div class="footer-left">
+                        <button id="load-saved-btn" class="btn btn-secondary btn-sm" title="Load saved spell tree from disk">
+                            <span class="btn-icon">[L]</span> <span>Load Saved</span>
+                        </button>
+                        <button id="save-tree-btn" class="btn btn-secondary btn-sm" title="Save current spell tree to disk">
+                            <span class="btn-icon">[S]</span> <span>Save Tree</span>
+                        </button>
                         <button id="import-btn" class="btn btn-secondary btn-sm">
                             <span class="btn-icon">[v]</span> <span data-i18n="footer.import">Import</span>
                         </button>
@@ -1981,6 +1987,9 @@
 
     <!-- 1. Constants and Configuration -->
     <script src="modules/constants.js"></script>
+    <!-- Toast notification container -->
+    <div id="toast-container" class="toast-container"></div>
+
     <script src="modules/state.js"></script>
     <script src="modules/config.js"></script>
 

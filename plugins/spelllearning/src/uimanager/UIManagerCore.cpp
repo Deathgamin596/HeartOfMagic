@@ -301,6 +301,14 @@ void UIManager::OnDomReady(PrismaView view)
 
     // Notify JS that we're ready
     instance->m_prismaUI->InteropCall(view, "onPrismaReady", "");
+
+    // Re-send cached unified config to main panel (OnLoadUnifiedConfig may have fired
+    // before this view's JS was ready, dropping the onUnifiedConfigLoaded call).
+    // Mirrors HUD view behavior to ensure all settings persist across restarts.
+    if (!instance->m_lastUnifiedConfig.empty()) {
+        instance->m_prismaUI->InteropCall(view, "onUnifiedConfigLoaded", instance->m_lastUnifiedConfig.c_str());
+        logger::info("UIManager: Re-sent unified config to main panel on DOM ready");
+    }
 }
 
 void UIManager::OnHUDDomReady(PrismaView view)

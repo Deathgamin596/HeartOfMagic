@@ -1012,11 +1012,13 @@ function finishLLMGeneration() {
 function saveTreeToFile() {
     if (!state.treeData || !state.treeData.rawData) {
         console.warn('[SpellLearning] No tree data to save');
+        if (typeof showToast === 'function') showToast('No tree data to save', 'error', 4000);
         return false;
     }
     
     if (!window.callCpp) {
         console.warn('[SpellLearning] Cannot save - callCpp not available');
+        if (typeof showToast === 'function') showToast('Cannot save tree - bridge not ready', 'error', 4000);
         return false;
     }
     
@@ -1025,6 +1027,7 @@ function saveTreeToFile() {
                 Object.keys(state.treeData.rawData.schools || {}).length, 'schools');
     
     window.callCpp('SaveSpellTree', treeJson);
+    if (typeof showToast === 'function') showToast('Spell tree saved', 'success', 3000);
     return true;
 }
 

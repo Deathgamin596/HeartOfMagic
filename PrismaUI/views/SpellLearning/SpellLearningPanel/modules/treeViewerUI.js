@@ -255,7 +255,10 @@ function initializeTreeViewer() {
     var llmToolbarBtn = document.getElementById('llm-toolbar-btn');
 
     if (importTreeBtn) importTreeBtn.addEventListener('click', showImportModal);
-    if (loadSavedBtn) loadSavedBtn.addEventListener('click', loadSavedTree);
+    if (loadSavedBtn) loadSavedBtn.addEventListener('click', function() {
+        if (typeof showToast === 'function') showToast('Loading spell tree...', 'info', 2000);
+        loadSavedTree();
+    });
     var goToScannerBtn = document.getElementById('go-to-scanner-btn');
     if (goToScannerBtn) goToScannerBtn.addEventListener('click', function() { switchTab('spellScan'); });
     if (importBtn) importBtn.addEventListener('click', showImportModal);
@@ -304,6 +307,7 @@ function initializeTreeViewer() {
     
     if (reloadTreeBtn) {
         reloadTreeBtn.addEventListener('click', function() {
+            if (typeof showToast === 'function') showToast('Loading spell tree...', 'info', 2000);
             loadSavedTree();
         });
     }

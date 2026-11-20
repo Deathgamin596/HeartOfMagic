@@ -1317,8 +1317,10 @@ function initializeSettings() {
             try {
                 saveSettings();
                 console.log('[SpellLearning] Settings saved');
+                if (typeof showToast === 'function') showToast('Settings saved', 'success', 3000);
             } catch (e) {
                 console.error('[SpellLearning] Settings save failed:', e);
+                if (typeof showToast === 'function') showToast('Settings save failed', 'error', 4000);
             }
         });
     }
@@ -1435,7 +1437,7 @@ function loadSettings() {
 
 function saveSettings() {
     // Save unified config to C++ (all settings in one file)
-    saveUnifiedConfig();
+    flushSettingsSave();
 }
 
 // Auto-save settings (debounced to avoid excessive saves)
@@ -1453,9 +1455,19 @@ function autoSaveSettings() {
     }, 500);
 }
 
+// Flush any pending auto-save immediately (for explicit save / panel close)
+function flushSettingsSave() {
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+    }
+    saveUnifiedConfig();
+}
+
 function saveUnifiedConfig() {
     if (!window.callCpp) {
         console.warn('[SpellLearning] saveUnifiedConfig: callCpp bridge not ready — settings will not be saved. Try opening the panel via hotkey and saving again.');
+        if (typeof showToast === 'function') showToast('Cannot save settings - bridge not ready', 'error', 4000);
         return;
     }
     
@@ -1501,6 +1513,10 @@ function saveUnifiedConfig() {
         xpCapDirect: settings.xpCapDirect,
         // Modded XP sources
         moddedXPSources: settings.moddedXPSources,
+        // Concentration XP rate
+        concentrationXPRate: settings.concentrationXPRate,
+        // Pause game on focus
+        pauseGameOnFocus: settings.pauseGameOnFocus,
         // Tier XP requirements
         xpNovice: settings.xpNovice,
         xpApprentice: settings.xpApprentice,
@@ -1814,6 +1830,13 @@ window.onUnifiedConfigLoaded = function(dataStr) {
         settings.xpMultiplierDirect = data.xpMultiplierDirect !== undefined ? data.xpMultiplierDirect : 100;
         settings.xpMultiplierSchool = data.xpMultiplierSchool !== undefined ? data.xpMultiplierSchool : 50;
         settings.xpMultiplierAny = data.xpMultiplierAny !== undefined ? data.xpMultiplierAny : 10;
+        settings.concentrationXPRate = data.concentrationXPRate !== undefined ? data.concentrationXPRate : 1.0;
+        // XP caps (max contribution from each source)
+        settings.xpCapAny = data.xpCapAny !== undefined ? data.xpCapAny : 5;
+        settings.xpCapSchool = data.xpCapSchool !== undefined ? data.xpCapSchool : 15;
+        settings.xpCapDirect = data.xpCapDirect !== undefined ? data.xpCapDirect : 50;
+        // Pause game on focus
+        settings.pauseGameOnFocus = data.pauseGameOnFocus !== undefined ? data.pauseGameOnFocus : false;
         // Tier XP requirements
         settings.xpNovice = data.xpNovice !== undefined ? data.xpNovice : 100;
         settings.xpApprentice = data.xpApprentice !== undefined ? data.xpApprentice : 200;
@@ -1967,6 +1990,19 @@ window.onUnifiedConfigLoaded = function(dataStr) {
         var sameTierPreferenceToggle = document.getElementById('sameTierPreferenceToggle');
         if (sameTierPreferenceToggle) sameTierPreferenceToggle.checked = settings.proceduralInjection.sameTierPreference;
         
+        // Concentration XP rate slider
+        var concSlider = document.getElementById('concentrationXPRateSlider');
+        var concValue = document.getElementById('concentrationXPRateValue');
+        if (concSlider) {
+            concSlider.value = settings.concentrationXPRate;
+            if (concValue) concValue.textContent = 'x' + settings.concentrationXPRate;
+            updateSliderFillGlobal(concSlider);
+        }
+
+        // Pause game on focus toggle
+        var pauseGameToggle = document.getElementById('pauseGameOnFocusToggle');
+        if (pauseGameToggle) pauseGameToggle.checked = settings.pauseGameOnFocus;
+
         // === HUD Progress Overlay ===
         if (data.hudProgress && typeof data.hudProgress === 'object') {
             settings.hudProgress.enabled = data.hudProgress.enabled !== undefined ? data.hudProgress.enabled : settings.hudProgress.enabled;

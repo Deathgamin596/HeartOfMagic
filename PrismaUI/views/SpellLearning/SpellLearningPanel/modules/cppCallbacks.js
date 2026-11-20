@@ -1,4 +1,4 @@
-/**
+﻿/**
  * C++ Callbacks Module
  * Handles all callbacks from the C++ SKSE plugin
  * 
@@ -542,6 +542,11 @@ window.updateTreeData = function(json) {
         
         console.log('[SpellLearning] Loading tree with ' + Object.keys(data.schools).length + ' schools');
         loadTreeData(data);
+
+        // Show toast on successful tree load
+        if (typeof showToast === 'function') {
+            showToast('Spell tree loaded', 'success', 3000);
+        }
         
         // Enable Pre Req Master now that tree is loaded
         if (typeof PreReqMaster !== 'undefined' && PreReqMaster.setButtonsEnabled) {
@@ -696,12 +701,44 @@ window.onTreeFormIdsUpdated = function(jsonStr) {
         }
 
         // Notify any registered UI listener
+        // Notify any registered UI listener
         if (typeof window.onTreeFormIdUpdateComplete === 'function') {
             window.onTreeFormIdUpdateComplete(response);
         }
-
     } catch (e) {
         console.error('[SpellLearning] Failed to parse onTreeFormIdsUpdated:', e);
+    }
+};
+
+// Listener for FormID fix completion: apply the remapped tree, save it, and notify.
+window.onTreeFormIdUpdateComplete = function(response) {
+    if (!response || !response.newTree) {
+        console.warn('[SpellLearning] FormID fix: no new tree in response');
+        return;
+    }
+
+    var stats = response.stats || {};
+    var replacements = stats.replacementsMade || 0;
+    var missing = stats.missingMatches || 0;
+
+    console.log('[SpellLearning] Applying FormID fix: ' + replacements + ' replacements, ' + missing + ' missing');
+
+    // Load the remapped tree into the live view
+    if (typeof loadTreeData === 'function') {
+        loadTreeData(response.newTree, false, false);
+    }
+
+    // Persist the remapped tree to disk
+    if (typeof saveTreeToFile === 'function') {
+        saveTreeToFile();
+    }
+
+    // Notify user
+    if (typeof showToast === 'function') {
+        showToast('FormIDs updated: ' + replacements + ' replaced' + (missing > 0 ? ', ' + missing + ' unmatched' : ''), 'success', 4000);
+    }
+    if (typeof updateStatus === 'function') {
+        updateStatus(t('status.treeFormIdUpdated', { replacements: replacements, missing: missing }));
     }
 };
 
@@ -1522,8 +1559,11 @@ window.onPanelHiding = function() {
         stopFeaturePolling();
     }
 
-    // Auto-save settings when panel closes
-    if (typeof saveSettings === 'function') {
+    // Auto-save settings when panel closes (flush immediately so pending changes aren't lost)
+    if (typeof flushSettingsSave === 'function') {
+        flushSettingsSave();
+    } else if (typeof saveSettings === 'function') {
         saveSettings();
     }
 };
+

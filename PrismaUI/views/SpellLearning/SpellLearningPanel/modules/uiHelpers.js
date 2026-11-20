@@ -48,6 +48,58 @@ function setTreeStatus(msg) {
 }
 
 // =============================================================================
+// TOAST NOTIFICATIONS
+// =============================================================================
+
+var _lastToastTime = {};
+function showToast(message, type, duration) {
+    type = type || 'info';
+    duration = duration || 3000;
+
+    // Deduplicate: skip if same message shown within 1 second
+    var now = Date.now();
+    var key = type + ':' + message;
+    if (_lastToastTime[key] && (now - _lastToastTime[key]) < 1000) {
+        return;
+    }
+    _lastToastTime[key] = now;
+
+    var container = document.getElementById('toast-container');
+    if (!container) {
+        // Create container if missing
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+
+    var icon = '';
+    if (type === 'success') icon = '✓ ';
+    else if (type === 'error') icon = '✗ ';
+    else if (type === 'info') icon = 'ℹ ';
+
+    toast.textContent = icon + message;
+    container.appendChild(toast);
+
+    // Trigger enter animation
+    requestAnimationFrame(function() {
+        toast.classList.add('toast-show');
+    });
+
+    // Auto-remove
+    setTimeout(function() {
+        toast.classList.remove('toast-show');
+        toast.classList.add('toast-hide');
+        setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+    }, duration);
+}
+
+// =============================================================================
 // FIELD PRESETS
 // =============================================================================
 
